@@ -60,7 +60,7 @@ exist           { return EXIST; }
 "]"			{ return RPS; }
 
 "next"{ws}+"ip"	{
-			// Grammar exceptions
+			// Grammar exceptions nfdump compat, maybe enable one space separated identifiers ?
 					strncpy(yylval->string, "nextip", FF_MAX_STRING - 1);
 					return STRING;
 				}
@@ -73,6 +73,30 @@ exist           { return EXIST; }
 					return STRING;
 				}
 
+"mpls"{ws}+"label"	{
+					strncpy(yylval->string, "mplslabel", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label1"	{
+					strncpy(yylval->string, "mplslabel1", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label2"	{
+					strncpy(yylval->string, "mplslabel2", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label3"	{
+					strncpy(yylval->string, "mplslabel3", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"eos"	{
+					strncpy(yylval->string, "mplseos", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"exp"    {
+					strncpy(yylval->string, "mplsexp", FF_MAX_STRING - 1);
+					return STRING;
+				}
 
 "src and dst"|"dst and src"         { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return BIDIR_AND; }
 "src or dst"|"dst or src"           { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return BIDIR_OR; }
