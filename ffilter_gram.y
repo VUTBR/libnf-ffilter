@@ -91,14 +91,14 @@ expr:
 	| expr OR expr      { $$ = ff_new_node(scanner, filter, $1, FF_OP_OR, $3); if ($$ == NULL) { YYABORT; }; }
 	| LP expr RP        { $$ = $2; }
 
-	| "inet"             { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "4"); if ($$ == NULL) { YYABORT; } }
-	| "inet6"             { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "6"); if ($$ == NULL) { YYABORT; } }
-	| "ipv4"             { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "4"); if ($$ == NULL) { YYABORT; } }
-	| "ipv6"             { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "6"); if ($$ == NULL) { YYABORT; } }
+	| "inet"            { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "4"); if ($$ == NULL) { YYABORT; } }
+	| "inet6"           { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "6"); if ($$ == NULL) { YYABORT; } }
+	| "ipv4"            { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "4"); if ($$ == NULL) { YYABORT; } }
+	| "ipv6"            { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "6"); if ($$ == NULL) { YYABORT; } }
 
 	| EXIST field       { $$ = ff_new_leaf(scanner, filter, $2, FF_OP_EXIST, ""); if ($$ == NULL) { YYABORT; } }
-	| field cmp value    { $$ = ff_new_leaf(scanner, filter, $1, $2, $3); if ($$ == NULL) { YYABORT; } }
-	| field IN list     {  $$ = ff_new_leaf(scanner, filter, $1, FF_OP_IN, $3); if ($$ == NULL) { YYABORT; } }
+	| field cmp value   { $$ = ff_new_leaf(scanner, filter, $1, $2, $3); if ($$ == NULL) { YYABORT; } }
+	| field IN list     { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_IN, $3); if ($$ == NULL) { YYABORT; } }
 	;
 
 list:
@@ -106,12 +106,11 @@ list:
 	| STRING RPS        { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
 	;
 
-cmp:
-	|			{ $$ = FF_OP_NOOP; }
+cmp: %empty 	{ $$ = FF_OP_NOOP; }
 	| ISSET		{ $$ = FF_OP_ISSET; }
 	| EQ		{ $$ = FF_OP_EQ; }
 	| LT		{ $$ = FF_OP_LT; }
-    | GT		{ $$ = FF_OP_GT; }
+	| GT		{ $$ = FF_OP_GT; }
 	;
 
 %%
