@@ -89,6 +89,34 @@ exist           { return EXIST; }
 					strncpy(yylval->string, "mplslabel3", FF_MAX_STRING - 1);
 					return STRING;
 				}
+"mpls"{ws}+"label4"	{
+					strncpy(yylval->string, "mplslabel4", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label5"	{
+					strncpy(yylval->string, "mplslabel5", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label6"	{
+					strncpy(yylval->string, "mplslabel6", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label7"	{
+					strncpy(yylval->string, "mplslabel7", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label8"	{
+					strncpy(yylval->string, "mplslabel8", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label9"	{
+					strncpy(yylval->string, "mplslabel9", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label10"	{
+					strncpy(yylval->string, "mplslabel10", FF_MAX_STRING - 1);
+					return STRING;
+				}
 "mpls"{ws}+"eos"	{
 					strncpy(yylval->string, "mplseos", FF_MAX_STRING - 1);
 					return STRING;

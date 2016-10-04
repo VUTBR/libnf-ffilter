@@ -21,10 +21,10 @@
 
 %defines
 %pure-parser
-%lex-param   	{ yyscan_t scanner }
-%lex-param	{ ff_t *filter }
-%parse-param 	{ yyscan_t scanner }
-%parse-param 	{ ff_t *filter }
+%lex-param      { yyscan_t scanner }
+%lex-param      { ff_t *filter }
+%parse-param    { yyscan_t scanner }
+%parse-param    { ff_t *filter }
 %name-prefix = "ff2_"
 
 %{
@@ -37,7 +37,7 @@
 
 	void yyerror(yyscan_t scanner, ff_t *filter, char *msg)
 	{
-		ff_set_error(filter, msg);
+	    ff_set_error(filter, msg);
 	}
 
 %}
@@ -68,7 +68,7 @@
 
 filter:
 	expr                { filter->root = $1; }
-	|                   { filter->root = NULL; }
+	| %empty                  { filter->root = NULL; }
 	;
 
 field:
@@ -90,12 +90,23 @@ expr:
 	| expr AND expr     { $$ = ff_new_node(scanner, filter, $1, FF_OP_AND, $3); if ($$ == NULL) { YYABORT; }; }
 	| expr OR expr      { $$ = ff_new_node(scanner, filter, $1, FF_OP_OR, $3); if ($$ == NULL) { YYABORT; }; }
 	| LP expr RP        { $$ = $2; }
-
-	| "inet"            { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "4"); if ($$ == NULL) { YYABORT; } }
-	| "inet6"           { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "6"); if ($$ == NULL) { YYABORT; } }
-	| "ipv4"            { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "4"); if ($$ == NULL) { YYABORT; } }
-	| "ipv6"            { $$ = ff_new_leaf(scanner, filter, "inet", FF_OP_EQ, "6"); if ($$ == NULL) { YYABORT; } }
-
+	| field             { struct { char* name; char* field; char* cnst; } const_info[] =
+                        	{
+                            	{"inet", "inet", "4"},
+                        		{"inet6", "inet", "6"},
+                        		{"ipv4", "inet", "4"},
+                        		{"ipv6", "inet", "6"},
+                        		{NULL,NULL,NULL}
+                        	};
+                        	int x;
+                        	for(x = 0; const_info[x].name; x++){
+                        		if (!strcmp($1, const_info[x].name)){
+                        			$$ = ff_new_leaf(scanner, filter, const_info[x].field, FF_OP_EQ, const_info[x].cnst); if ($$ == NULL) { YYABORT; }
+                        			break;
+                        		}
+                        	}
+                        	if (!const_info[x].name) { YYABORT; };
+                        }
 	| EXIST field       { $$ = ff_new_leaf(scanner, filter, $2, FF_OP_EXIST, ""); if ($$ == NULL) { YYABORT; } }
 	| field cmp value   { $$ = ff_new_leaf(scanner, filter, $1, $2, $3); if ($$ == NULL) { YYABORT; } }
 	| field IN list     { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_IN, $3); if ($$ == NULL) { YYABORT; } }
@@ -106,11 +117,12 @@ list:
 	| STRING RPS        { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
 	;
 
-cmp: %empty 	{ $$ = FF_OP_NOOP; }
-	| ISSET		{ $$ = FF_OP_ISSET; }
-	| EQ		{ $$ = FF_OP_EQ; }
-	| LT		{ $$ = FF_OP_LT; }
-	| GT		{ $$ = FF_OP_GT; }
+cmp:
+	ISSET       { $$ = FF_OP_ISSET; }
+	| EQ        { $$ = FF_OP_EQ; }
+	| LT        { $$ = FF_OP_LT; }
+	| GT        { $$ = FF_OP_GT; }
+	| %empty    { $$ = FF_OP_NOOP; }
 	;
 
 %%

@@ -118,7 +118,7 @@ typedef double ff_double_t;
 typedef ff_ip_t ff_addr_t;
 typedef char ff_mac_t[8];
 typedef char* ff_string_t;
-typedef ff_mpls_label_t ff_mpls_stack_t[10];		//WTF ? why 10 ? is it because of the way libnf treats mpls
+typedef ff_mpls_label_t ff_mpls_stack_t[10];
 typedef uint64_t ff_timestamp_t;
 
 
