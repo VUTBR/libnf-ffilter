@@ -60,7 +60,7 @@ exist           { return EXIST; }
 "]"			{ return RPS; }
 
 "next"{ws}+"ip"	{
-			// Grammar exceptions
+			// Grammar exceptions nfdump compat, maybe enable one space separated identifiers ?
 					strncpy(yylval->string, "nextip", FF_MAX_STRING - 1);
 					return STRING;
 				}
@@ -73,6 +73,58 @@ exist           { return EXIST; }
 					return STRING;
 				}
 
+"mpls"{ws}+"label"	{
+					strncpy(yylval->string, "mplslabel", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label1"	{
+					strncpy(yylval->string, "mplslabel1", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label2"	{
+					strncpy(yylval->string, "mplslabel2", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label3"	{
+					strncpy(yylval->string, "mplslabel3", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label4"	{
+					strncpy(yylval->string, "mplslabel4", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label5"	{
+					strncpy(yylval->string, "mplslabel5", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label6"	{
+					strncpy(yylval->string, "mplslabel6", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label7"	{
+					strncpy(yylval->string, "mplslabel7", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label8"	{
+					strncpy(yylval->string, "mplslabel8", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label9"	{
+					strncpy(yylval->string, "mplslabel9", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"label10"	{
+					strncpy(yylval->string, "mplslabel10", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"eos"	{
+					strncpy(yylval->string, "mplseos", FF_MAX_STRING - 1);
+					return STRING;
+				}
+"mpls"{ws}+"exp"    {
+					strncpy(yylval->string, "mplsexp", FF_MAX_STRING - 1);
+					return STRING;
+				}
 
 "src and dst"|"dst and src"         { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return BIDIR_AND; }
 "src or dst"|"dst or src"           { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return BIDIR_OR; }

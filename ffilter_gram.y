@@ -21,10 +21,10 @@
 
 %defines
 %pure-parser
-%lex-param   	{ yyscan_t scanner }
-%lex-param	{ ff_t *filter }
-%parse-param 	{ yyscan_t scanner }
-%parse-param 	{ ff_t *filter }
+%lex-param      { yyscan_t scanner }
+%lex-param      { ff_t *filter }
+%parse-param    { yyscan_t scanner }
+%parse-param    { ff_t *filter }
 %name-prefix = "ff2_"
 
 %{
@@ -37,7 +37,7 @@
 
 	void yyerror(yyscan_t scanner, ff_t *filter, char *msg)
 	{
-		ff_set_error(filter, msg);
+	    ff_set_error(filter, msg);
 	}
 
 %}
@@ -56,6 +56,7 @@
 %token <string> STRING DIR BIDIR_AND BIDIR_OR DIR_DIR_MAC
 %token BAD_TOKEN
 
+%type <t_uint> cmp
 %type <string> field value
 %type <node> expr filter list
 
@@ -89,19 +90,39 @@ expr:
 	| expr AND expr     { $$ = ff_new_node(scanner, filter, $1, FF_OP_AND, $3); if ($$ == NULL) { YYABORT; }; }
 	| expr OR expr      { $$ = ff_new_node(scanner, filter, $1, FF_OP_OR, $3); if ($$ == NULL) { YYABORT; }; }
 	| LP expr RP        { $$ = $2; }
-	| field value       { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_NOOP, $2); if ($$ == NULL) { YYABORT; } }
+	| field             { struct { char* name; char* field; char* cnst; } const_info[] =
+                        	{
+                            	{"inet", "inet", "4"},
+                        		{"inet6", "inet", "6"},
+                        		{"ipv4", "inet", "4"},
+                        		{"ipv6", "inet", "6"},
+                        		{NULL,NULL,NULL}
+                        	};
+                        	int x;
+                        	for(x = 0; const_info[x].name; x++){
+                        		if (!strcmp($1, const_info[x].name)){
+                        			$$ = ff_new_leaf(scanner, filter, const_info[x].field, FF_OP_EQ, const_info[x].cnst); if ($$ == NULL) { YYABORT; }
+                        			break;
+                        		}
+                        	}
+                        	if (!const_info[x].name) { YYABORT; };
+                        }
 	| EXIST field       { $$ = ff_new_leaf(scanner, filter, $2, FF_OP_EXIST, ""); if ($$ == NULL) { YYABORT; } }
-	| field ISSET value { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_ISSET, $3); if ($$ == NULL) { YYABORT; } }
-	| field EQ value    { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_EQ, $3); if ($$ == NULL) { YYABORT; } }
-	| field LT value    { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_LT, $3); if ($$ == NULL) { YYABORT; } }
-	| field GT value    { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_GT, $3); if ($$ == NULL) { YYABORT; } }
-
-	| field IN list     {  $$ = ff_new_leaf(scanner, filter, $1, FF_OP_IN, $3); if ($$ == NULL) { YYABORT; } }
+	| field cmp value   { $$ = ff_new_leaf(scanner, filter, $1, $2, $3); if ($$ == NULL) { YYABORT; } }
+	| field IN list     { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_IN, $3); if ($$ == NULL) { YYABORT; } }
 	;
 
 list:
 	STRING list         { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $2); if ($$ == NULL) { YYABORT; } }
 	| STRING RPS        { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
+	;
+
+cmp:
+	ISSET       { $$ = FF_OP_ISSET; }
+	| EQ        { $$ = FF_OP_EQ; }
+	| LT        { $$ = FF_OP_LT; }
+	| GT        { $$ = FF_OP_GT; }
+	|           { $$ = FF_OP_NOOP; }
 	;
 
 %%
