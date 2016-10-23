@@ -68,7 +68,7 @@
 
 filter:
 	expr                { filter->root = $1; }
-	| %empty                  { filter->root = NULL; }
+	|                   { filter->root = NULL; }
 	;
 
 field:
@@ -122,7 +122,7 @@ cmp:
 	| EQ        { $$ = FF_OP_EQ; }
 	| LT        { $$ = FF_OP_LT; }
 	| GT        { $$ = FF_OP_GT; }
-	| %empty    { $$ = FF_OP_NOOP; }
+	|           { $$ = FF_OP_NOOP; }
 	;
 
 %%
