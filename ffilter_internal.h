@@ -4,39 +4,6 @@
 
 #include "ffilter.h"
 
-typedef struct ff_net_s { ff_ip_t ip; ff_ip_t mask; int ver; } ff_net_t;
-
-/* supported operations */
-typedef enum {
-	FF_OP_NOT = 1,
-	FF_OP_OR,
-	FF_OP_AND,
-	FF_OP_NOOP,
-	FF_OP_EQ,
-	FF_OP_LT,
-	FF_OP_GT,
-	FF_OP_ISSET,
-	FF_OP_IN,
-	FF_OP_YES,
-	FF_OP_EXIST
-} ff_oper_t;
-
-
-/* node of syntax tree */
-typedef struct ff_node_s {
-	ff_extern_id_t field;         /* field ID */
-	char *value;                  /* buffer allocated for data */
-	size_t vsize;                 /* size of data in value */
-	int type;                     /* data type for value */
-	ff_oper_t oper;               /* operation */
-	int opts;                     /* mpls stack data selector label, exp or eos */
-	int n;                        /* extra identification for mpls<n> variant */
-
-	struct ff_node_s *left;
-	struct ff_node_s *right;
-
-} ff_node_t;
-
 #ifndef HAVE_HTONLL
 #ifdef WORDS_BIGENDIAN
 #   define ntohll(n)    (n)
@@ -48,7 +15,6 @@ typedef struct ff_node_s {
 #define HAVE_HTONLL 1
 #endif
 
-
 /* scanner instance */
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
@@ -59,7 +25,6 @@ typedef void* yyscan_t;
 #define YY_TYPEDEF_YY_BUFFER_STATE
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #endif
-
 
 YY_BUFFER_STATE ff_yy_scan_string(const char *str, yyscan_t yyscanner);
 int ff_yyparse(yyscan_t yyscanner, ff_t *filter);
@@ -102,8 +67,6 @@ int ff2_lex_init(yyscan_t *yyscanner);
 YY_BUFFER_STATE ff2__scan_string(const char *, yyscan_t yyscanner);
 int ff2_parse(yyscan_t yyscanner, ff_t*);
 int ff2_lex_destroy(yyscan_t yyscanner);
-
-
 
 #endif
 

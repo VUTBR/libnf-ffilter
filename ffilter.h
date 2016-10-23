@@ -44,6 +44,8 @@
 #endif
 
 typedef struct ff_ip_s { uint32_t data[4]; } ff_ip_t; /*!< IPv4/IPv6 address */
+typedef struct ff_net_s { ff_ip_t ip; ff_ip_t mask; int ver; } ff_net_t;
+
 typedef union {
 	//TODO: Test on big-endian machine
 	struct {
@@ -74,7 +76,6 @@ typedef enum {
 	FF_TYPE_ADDR,
 	FF_TYPE_MAC,
 	FF_TYPE_STRING,
-	//TODO: Implement
 	FF_TYPE_MPLS,
 	FF_TYPE_TIMESTAMP,      /* uint64_t bit timestamp eval as unsigned, milliseconds from 1-1-1970 00:00:00 */
 	FF_TYPE_TIMESTAMP_BIG,  /* uint64_t bit timestamp eval as unsigned, to host byte order conversion required */
@@ -121,8 +122,6 @@ typedef char* ff_string_t;
 typedef ff_mpls_label_t ff_mpls_stack_t[10];
 typedef uint64_t ff_timestamp_t;
 
-
-
 /**
  * \typedef ffilter interface return codes
  */
@@ -148,9 +147,23 @@ typedef enum {
 	FF_OPTS_MPLS_EXP,
 } ff_opts_t;
 
+
+/* supported operations */
+typedef enum {
+	FF_OP_NOT = 1,
+	FF_OP_OR,
+	FF_OP_AND,
+	FF_OP_NOOP,
+	FF_OP_EQ,
+	FF_OP_LT,
+	FF_OP_GT,
+	FF_OP_ISSET,
+	FF_OP_IN,
+	FF_OP_YES,
+	FF_OP_EXIST
+} ff_oper_t;
+
 /** \brief External identification of value */
-
-
 typedef union {
 	uint64_t index;       /**< Index mapping      */
 	const void *ptr;      /**< Direct mapping     */
@@ -168,6 +181,21 @@ typedef struct ff_lvalue_s {
 	/** 0 for not set */
 	int n;
 } ff_lvalue_t;
+
+/* node of syntax tree */
+typedef struct ff_node_s {
+	ff_extern_id_t field;         /* field ID */
+	char *value;                  /* buffer allocated for data */
+	size_t vsize;                 /* size of data in value */
+	int type;                     /* data type for value */
+	ff_oper_t oper;               /* operation */
+	int opts;                     /* mpls stack data selector label, exp or eos */
+	int n;                        /* extra identification for mpls<n> variant */
+
+	struct ff_node_s *left;
+	struct ff_node_s *right;
+
+} ff_node_t;
 
 //typedef struct ff_s ff_t;
 struct ff_s;
