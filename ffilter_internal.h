@@ -2,8 +2,7 @@
 #ifndef _FFILTER_INTERNAL_H
 #define _FFILTER_INTERNAL_H
 
-#include <ffilter.h>
-
+#include "ffilter.h"
 
 #ifndef HAVE_HTONLL
 #ifdef WORDS_BIGENDIAN
@@ -16,7 +15,6 @@
 #define HAVE_HTONLL 1
 #endif
 
-
 /* scanner instance */
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
@@ -28,7 +26,6 @@ typedef void* yyscan_t;
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #endif
 
-
 YY_BUFFER_STATE ff_yy_scan_string(const char *str, yyscan_t yyscanner);
 int ff_yyparse(yyscan_t yyscanner, ff_t *filter);
 //int lnf_filter_yylex(YYSTYPE *yylval, void *scanner);
@@ -39,12 +36,17 @@ void yyerror(yyscan_t yyscanner, ff_t *filter, char *);
 /* conversion from string to numeric/bit value */
 int64_t get_unit(char *unit);
 int64_t strtoll_unit(char *num, char**endptr);
-uint64_t strtoul_unit(char *num, char**endptr);
-int str_to_uint(char *str, int type, char **res, size_t *vsize);
-int str_to_int(char *str, int type, char **res, size_t *vsize);
-int str_to_mac(char *str, char **res, size_t *vsize);
-int str_to_addr(ff_t *filter, char *str, char **res, int *numbits, size_t *vsize);
-int str_to_timestamp(char *str, char **res, size_t *vsize);
+uint64_t strtoull_unit(char *num, char**endptr);
+
+int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsize);
+int str_to_int(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsize);
+
+int str_to_uint64(ff_t *filter, char *str, char **res, size_t *vsize);
+int str_to_int64(ff_t *filter, char *str, char **res, size_t *vsize);
+int str_to_real(ff_t *filter, char *str, char **res, size_t *vsize);
+int str_to_mac(ff_t *filter, char *str, char **res, size_t *vsize);
+int str_to_addr(ff_t *filter, char *str, char **res, size_t *vsize);
+int str_to_timestamp(ff_t *filter, char *str, char **res, size_t *vsize);
 
 /* add new node into parse tree */
 ff_node_t* ff_duplicate_node(ff_node_t* original);
@@ -65,8 +67,6 @@ int ff2_lex_init(yyscan_t *yyscanner);
 YY_BUFFER_STATE ff2__scan_string(const char *, yyscan_t yyscanner);
 int ff2_parse(yyscan_t yyscanner, ff_t*);
 int ff2_lex_destroy(yyscan_t yyscanner);
-
-
 
 #endif
 
