@@ -249,12 +249,11 @@ int str_to_real(ff_t *filter, char *str, char **res, size_t *vsize)
  */
 int int_to_netmask(int *numbits, ff_ip_t *mask)
 {
-	int req_oct;
 	int retval = 0;
 	if (*numbits > 128 || *numbits < 0) { *numbits = 128; retval = 1;}
 	//if (*numbits == 0) { retval = 1;}
 
-	//req_oct = (*numbits >> 5) + ((*numbits & 0b11111) > 0); //Get number of reqired octets
+	//int req_oct = (*numbits >> 5) + ((*numbits & 0b11111) > 0); //Get number of reqired octets
 
 	int x;
 	for (x = 0; x < (*numbits >> 5); x++) {
@@ -395,7 +394,7 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 
 	free(ip_str);
 
-	*res = &(ptr->ip);
+	*res = (char*)&(ptr->ip);
 
 	*size = sizeof(ff_net_t);
 	return 0;
@@ -612,9 +611,9 @@ const char* ff_error(ff_t *filter, const char *buf, int buflen) {
  * \return Root node of new subtree or NULL on error
  */
 ff_node_t* ff_branch_node(ff_node_t *node, ff_oper_t oper, ff_lvalue_t* lvalue) {
-
+	//TODO: harden against memory faults
 	ff_node_t *dup[FF_MULTINODE_MAX] = {0};
-	int err = 0;
+	//int err = 0;
 	int x = 0;
 	dup[0] = node;
 
@@ -623,7 +622,8 @@ ff_node_t* ff_branch_node(ff_node_t *node, ff_oper_t oper, ff_lvalue_t* lvalue) 
 		if (dup[x]) {
 			dup[x]->field = lvalue->id[x];
 		} else {
-			err = 1;
+			//err = 1;
+			;
 		}
 	}
 
