@@ -19,9 +19,10 @@
 
 */
 
-/*! \file ffilter.h
-	\brief netflow fiter implementation - C interface
-*/
+/**
+ * \file ffilter.h
+ * \brief netflow fiter implementation - C interface
+ */
 #ifndef _FLOW_FILTER_H_
 #define _FLOW_FILTER_H_//
 
@@ -303,7 +304,7 @@ int ff_eval(ff_t *filter, void *rec);
 
 /**
  * \brief Release memory allocated for filter object and destroy it
- * \parqm filter Compiled filter object
+ * \param filter Compiled filter object
  * \return FF_OK on success
  */
 ff_error_t ff_free(ff_t *filter);

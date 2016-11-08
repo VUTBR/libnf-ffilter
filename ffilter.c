@@ -307,9 +307,8 @@ char* unwrap_ip(char *ip_str, int numbits)
  * \param filter
  * \param str
  * \param res
- * \param numbits
  * \param size
- * \return
+ * \return zero on success
  */
 int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 {
@@ -403,10 +402,11 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 /**
  * \brief str_to_mac Decodes mac from string to array of chars
  * function expects xx:xx:xx:xx:xx:xx
- * \param[in] Str literal containing mac address
+ * \param filter
+ * \param[in] str literal containing mac address
  * \param res
- * \param size Number of bits allocated
- * \return Zero on failure
+ * \param size number of bits allocated
+ * \return zero on success
  */
 int str_to_mac(ff_t *filter, char *str, char **res, size_t *size)
 {
@@ -605,7 +605,7 @@ const char* ff_error(ff_t *filter, const char *buf, int buflen) {
 
 /**
  * \brief Build node tree with leaf nodes for each ff_external_id
- * \param[in] Node - leaf used as template
+ * \param[in] node - leaf used as template
  * \param oper - FF_OP_AND or FF_OP_OR defines how structure will evaluate \see ff_oper_t
  * \param[in] lvalue - Info about field
  * \return Root node of new subtree or NULL on error
