@@ -25,6 +25,7 @@ is field name, validated by lookup function,
 <operator>
 ``` 
 is one of notations in table,
+
 Notation | Semantics | Info
 --- | --- | ---
  | eq by default | Can by changed by modifying opitions in lvalue returned from lookup func
