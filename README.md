@@ -11,14 +11,20 @@ Filter uses *bison* and *flex* to scan and parse input language, so these are es
 
 ## Syntax:
 
-Filtering expression looks like this. 
-```<expression> : <identifier> <operator> <value>```
-
-Where 
-```<identifier>``` 
+Filtering expression looks like this.
+```
+<expression> : <identifier> <operator> <value>
+```
+Where
+```
+<identifier>
+```
 is field name, validated by lookup function,
 
-```<operator>``` is one of notations in table,
+```
+<operator>
+``` 
+is one of notations in table,
 Notation | Semantics | Info
 --- | --- | ---
  | eq by default | Can by changed by modifying opitions in lvalue returned from lookup func
@@ -27,7 +33,10 @@ gt, > | greater than | Honours singedness
 lt, < | little that | Honours singedness
 & | like/bit-and | Check for presence of bits, with strings use substr() for evaluation
 
-```<value>``` is maximally one space separated sequence of digits or letters.
+```
+<value>
+``` 
+is maximally one space separated sequence of digits or letters.
 
 Expressions might be connected with operators: &&, and, ||, or, !, not. Precedence can be
 changed by parenthesis.
