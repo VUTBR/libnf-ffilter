@@ -210,7 +210,7 @@ struct ff_s;
  * \brief Lookup the field name found in filter expresson and identify its type one of and associated data elements
  * Callback fills in information about field into ff_lvalue_t sturcture. Required information are external
  * identification of field as understood by data function, data type of filed as one of ff_type_t enum
- * \param filter Filter object
+ * \param[in] filter Filter object
  * \param[in] fieldstr Name of element to identify
  * \param[out] lvalue identification representing field
  * \return FF_OK on success
@@ -267,7 +267,7 @@ typedef struct ff_s {
 /**
  * \brief Options constructor
  * allocates options structure
- * \param ff_options
+ * \param[in] ff_options
  * \return FF_OK on success
  */
 ff_error_t ff_options_init(ff_options_t **ff_options);
@@ -275,7 +275,7 @@ ff_error_t ff_options_init(ff_options_t **ff_options);
 /**
  * \brief Options destructor
  * frees options structure
- * \param ff_options Address of pointer to options
+ * \param[out] ff_options Address of pointer to options
  * \return FF_OK on success
  */
 ff_error_t ff_options_free(ff_options_t *ff_options);
@@ -287,41 +287,41 @@ ff_error_t ff_options_free(ff_options_t *ff_options);
  * Lookup identifies the valid lvalue field names and associated filed data types.
  * Data callback sellects associated data for each identificator during evaluation
  * Rval_map callback provides translations to literal constants in value fileds eg.: "SSH"->22 etc.
- * \param ff_filter Address of pointer to filter object
- * \param expr Filter expression
- * \param ff_options Associated options containig callbacks
+ * \param[out] ff_filter Address of pointer to filter object
+ * \param[in] expr Filter expression
+ * \param[in] ff_options Associated options containig callbacks
  * \return FF_OK on success
  */
-ff_error_t ff_init(ff_t **ff_filter, const char *expr, ff_options_t *ff_options);
+ff_error_t ff_init(ff_t **filter, const char *expr, ff_options_t *ff_options);
 
 /**
  * \brief Evaluate filter on data
- * \param filter Compiled filter object
- * \param rec Data record in form readable to data callback
+ * \param[in] ff_filter Compiled filter object
+ * \param[in] rec Data record in form readable to data callback
  * \return Nonzero on match
  */
 int ff_eval(ff_t *filter, void *rec);
 
 /**
  * \brief Release memory allocated for filter object and destroy it
- * \param filter Compiled filter object
+ * \param[out] filter Compiled filter object
  * \return FF_OK on success
  */
 ff_error_t ff_free(ff_t *filter);
 
 /**
  * \brief Set error string to filter object
- * \param filter Compiled filter object
- * \param format Format string as used in printf
+ * \param[in] filter Compiled filter object
+ * \param[in] format Format string as used in printf
+ * \param[in] ...
  */
 void ff_set_error(ff_t *filter, char *format, ...);
 
-//TODO: Pass only constant pointer to error message
 /**
  * \brief Retrive last error set form filter object
- * \param filter Compiled filter object
- * \param buf Place where to copy err string
- * \param buflen Length of data available
+ * \param[in] filter Compiled filter object
+ * \param[out] buf Place where to copy error string
+ * \param[in] buflen Length of buffer available for error string
  * \return Pointer to copied error string
  */
 const char* ff_error(ff_t *filter, const char *buf, int buflen);

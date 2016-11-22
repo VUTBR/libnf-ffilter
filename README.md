@@ -11,20 +11,41 @@ Filter uses *bison* and *flex* to scan and parse input language, so these are es
 
 ## Syntax:
 
-Filtering expression looks like this.
-```
-<expression> : <identifier> <operator> <value>
-```
-Where
-```
-<identifier>
-```
-is field name, validated by lookup function,
+Filtering expression looks like this:
 
+```
+<expression> : <expression> <operator> <expression>
+             : <not_operator> <expression>
+             : ( <expression> )
+             : <identifier> <comparator> <value>
+             : <identifier> in [ <value> ... ]
+```
+
+Where
 ```
 <operator>
 ``` 
-is one of notations in table,
+one of notations in table
+
+Notation | Semantics | Info
+--- | --- | ---
+ AND, && | logical and | Both expressions must be true, has priority over OR
+OR, \|\| | logical or | At least one must be true, 
+
+```
+<not_operator>
+``` 
+stands for unary logical nagation of expression, has priority over logic operators
+
+```
+<identifier>
+```
+field name, validated by lookup function
+
+```
+<omparator>
+``` 
+is one of notations in table
 
 Notation | Semantics | Info
 --- | --- | ---
@@ -37,16 +58,13 @@ lt, < | little that | Honours singedness
 ```
 <value>
 ``` 
-is maximally one space separated sequence of digits or letters.
-
-Expressions might be connected with operators: &&, and, ||, or, !, not. Precedence can be
-changed by parenthesis.
+is sequence of digits or letters, regex: "([0-9] | [A-Za-z:/\.\-])+", value can be composed of two such strings
 
 # Design
 ![Filter Module Scheme](doc/filter_data_model.png)
 
-Filter module (FM) requires user to implement interface functions, it might provide some default implementation for demonstration in future. _lookup\_func_ priovides valid field names and associates them with FM internal data types. Each field name has assigned external identification, a number which will identify it later during evaluation of filter tree. Theese external ids must be known to _data\_func_ function which filter uses to retrieve data from record. Lookup callback is only called during compilation of filter expression, whereas data callback is called by _ff\_eval_ on each leaf of filter tree.
+Filter module (FM) requires user to implement interface functions, it might provide some default implementation for demonstration in future. _ff\_lookup\_func_ priovides valid field names and associates them with FM internal data types. Each field name has assigned external identification, a number which will identify it later during evaluation of filter tree. Theese external ids must be known to _ff\_data\_func_ function which filter uses to retrieve data from record. Lookup callback is only called during compilation of filter expression, whereas data callback is called by _ff\_eval_ on each leaf of filter tree.
 
 Basically what that image is trying to express is that filter module must be provided interface implementation to function. Compilation uses these functions and generates filter tree. This tree is supossed to be evaluated against data fields provided by data callback from data records.
 
-There are some ugly hacks in scanner and parser grammars to support separated field identifiers and fields with default assigned values - literal constants, which will be fixed.
+
