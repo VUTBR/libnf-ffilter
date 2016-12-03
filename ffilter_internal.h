@@ -2,7 +2,12 @@
 #ifndef _FFILTER_INTERNAL_H
 #define _FFILTER_INTERNAL_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "ffilter.h"
+
 
 #ifndef HAVE_HTONLL
 #ifdef WORDS_BIGENDIAN
@@ -47,12 +52,18 @@ int str_to_real(ff_t *filter, char *str, char **res, size_t *vsize);
 int str_to_mac(ff_t *filter, char *str, char **res, size_t *vsize);
 int str_to_addr(ff_t *filter, char *str, char **res, size_t *vsize);
 int str_to_timestamp(ff_t *filter, char *str, char **res, size_t *vsize);
+int int_to_netmask(int *numbits, ff_ip_t *mask);
+char* unwrap_ip(char *ip_str, int numbits);
+
+ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t* node);
 
 /* add new node into parse tree */
 ff_node_t* ff_duplicate_node(ff_node_t* original);
 ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t oper,  ff_node_t* nextptr);
 ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t oper, char *valstr);
 ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_t oper, ff_node_t* right);
+ff_node_t* ff_branch_node(ff_node_t *node, ff_oper_t oper, ff_lvalue_t* lvalue);
+int ff_oper_eval(char* buf, size_t size, ff_node_t *node);
 
 /* evaluate filter */
 int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec);

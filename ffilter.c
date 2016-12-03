@@ -693,7 +693,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 	ff_lvalue_t lvalue;
 
 	int multinode = 1;
-	ff_oper_t root_oper = -1;
+	ff_oper_t root_oper = FF_OP_UNDEF;
 
 	retval = NULL;
 
@@ -794,7 +794,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 			//Setup nodes in or configuration for pair fields (src/dst etc.)
 			ff_node_t* new_root;
 			new_root = ff_branch_node(node,
-									  root_oper == -1 ? FF_OP_OR : root_oper,
+									  root_oper == FF_OP_UNDEF ? FF_OP_OR : root_oper,
 									  &lvalue);
 			if (new_root == NULL) {
 				ff_free_node(node);
