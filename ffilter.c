@@ -261,7 +261,8 @@ int int_to_netmask(int *numbits, ff_ip_t *mask)
 	}
 	if (x < 4) {
 		uint32_t bitmask = ~0U;
-		mask->data[x] = htonl(~(bitmask >> (*numbits & 0b11111)));
+		//mask->data[x] = htonl(~(bitmask >> (*numbits & 0b11111)));
+		mask->data[x] = htonl(~(bitmask >> (*numbits & 0x1f)));
 	}
 	return retval;
 }
