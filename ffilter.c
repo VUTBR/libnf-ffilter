@@ -280,7 +280,8 @@ char* unwrap_ip(char *ip_str, int numbits)
 	int octet = 0;
 	//* Check for required octets, note that inet_pton does the job of conversion
 	// this is just to allow shortened notation of ip addresses eg 172.168/16 */
-	int min_octets = (numbits >> 3) + ((numbits & 0b111) > 0);
+	//int min_octets = (numbits >> 3) + ((numbits & 0b111) > 0);
+	int min_octets = (numbits >> 3) + ((numbits & 0x7) > 0);
 
 	for (endptr = ip_str; endptr != NULL; octet++) {
 		endptr = strchr(++endptr, '.');
