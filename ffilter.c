@@ -747,6 +747,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 
 		node->type = lvalue.type;
 		node->field = lvalue.id[0];
+		retval = node;
 
 		//TODO: Fix bug when list of values is used on multinode
 		if (oper == FF_OP_IN) {
@@ -786,13 +787,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 			node->right = NULL;
 		}
 
-		if (!(lvalue.options & FF_OPTS_MULTINODE)) {
-			if (multinode) {
-				ff_free_node(node);
-				retval = NULL;
-			}
-			retval = node;
-		} else {
+		if (lvalue.id[1].index != 0) {
 			//Setup nodes in or configuration for pair fields (src/dst etc.)
 			ff_node_t* new_root;
 			new_root = ff_branch_node(node,
@@ -1124,6 +1119,13 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 	case FF_OP_ISSET:
 
 		switch (node->type) {
+
+		case FF_TYPE_UINT16: return ((*(uint16_t *) buf) & *(uint16_t *) node->value) ==
+	                            *(uint16_t *) node->value;
+
+		case FF_TYPE_UINT8: return ((*(uint8_t *) buf) & *(uint8_t *) node->value) ==
+	                           *(uint8_t *) node->value;
+
 		case FF_TYPE_UNSIGNED_BIG:
 			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
