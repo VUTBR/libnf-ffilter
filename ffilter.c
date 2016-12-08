@@ -261,7 +261,8 @@ int int_to_netmask(int *numbits, ff_ip_t *mask)
 	}
 	if (x < 4) {
 		uint32_t bitmask = ~0U;
-		mask->data[x] = htonl(~(bitmask >> (*numbits & 0b11111)));
+		//mask->data[x] = htonl(~(bitmask >> (*numbits & 0b11111)));
+		mask->data[x] = htonl(~(bitmask >> (*numbits & 0x1f)));
 	}
 	return retval;
 }
@@ -279,7 +280,8 @@ char* unwrap_ip(char *ip_str, int numbits)
 	int octet = 0;
 	//* Check for required octets, note that inet_pton does the job of conversion
 	// this is just to allow shortened notation of ip addresses eg 172.168/16 */
-	int min_octets = (numbits >> 3) + ((numbits & 0b111) > 0);
+	//int min_octets = (numbits >> 3) + ((numbits & 0b111) > 0);
+	int min_octets = (numbits >> 3) + ((numbits & 0x7) > 0);
 
 	for (endptr = ip_str; endptr != NULL; octet++) {
 		endptr = strchr(++endptr, '.');
@@ -693,7 +695,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 	ff_lvalue_t lvalue;
 
 	int multinode = 1;
-	ff_oper_t root_oper = -1;
+	ff_oper_t root_oper = FF_OP_UNDEF;
 
 	retval = NULL;
 
@@ -794,7 +796,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 			//Setup nodes in or configuration for pair fields (src/dst etc.)
 			ff_node_t* new_root;
 			new_root = ff_branch_node(node,
-									  root_oper == -1 ? FF_OP_OR : root_oper,
+									  root_oper == FF_OP_UNDEF ? FF_OP_OR : root_oper,
 									  &lvalue);
 			if (new_root == NULL) {
 				ff_free_node(node);

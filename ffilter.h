@@ -151,6 +151,7 @@ typedef enum {
 
 /* supported operations */
 typedef enum {
+	FF_OP_UNDEF = -1,
 	FF_OP_NOT = 1,
 	FF_OP_OR,
 	FF_OP_AND,
