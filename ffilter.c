@@ -829,8 +829,8 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
 }
 
 //TODO Refactor this to better readable form. Maybe inlined functions to eval each type and convert _BIG variant to flag
-//TODO: Add for timestamp types, check possible conflicts in node and data types
-//Big suffix refers to what endiannes to expect from data function, note that comparation uses native format of architecture
+//TODO: Add, check possible conflicts in node and data types
+//Big suffix refers to what endiannes expect from data function, note that comparation uses native format of architecture
 int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 {
 	int res = 0;
@@ -896,6 +896,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 			//TODO What if i get ipv4 in ff_addr_t structure
 			switch (size) {
 			//Comparation of v4 to v6 is forbidden
+			default:
 			case sizeof(ff_ip_t):
 				x = 0;
 				// If mask in node indicates that address will be ipv4 skip ipv6 portion
@@ -923,7 +924,6 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 					   ((ff_net_t *) node->value)->ip.data[3]);
 
 				return res;
-			default: return -1;
 			}
 
 		case FF_TYPE_MPLS:

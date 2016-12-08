@@ -73,10 +73,10 @@ filter:
 
 field:
 	STRING              { strncpy($$, $1, FF_MAX_STRING - 1); }
-	| DIR STRING        { snprintf($$, FF_MAX_STRING - 1, "%s %s", $1, $2); }
+	| DIR STRING        { snprintf($$, FF_MAX_STRING - 1, "%s%s", $1, $2); }
 	| BIDIR_OR STRING   { snprintf($$, FF_MAX_STRING - 1, "%c%s", '|', $2); }
 	| BIDIR_AND STRING  { snprintf($$, FF_MAX_STRING - 1, "%c%s", '&', $2); }
-	| DIR_DIR_MAC STRING { snprintf($$, FF_MAX_STRING - 1, "%s %s", $1, $2); }
+	| DIR_DIR_MAC STRING { snprintf($$, FF_MAX_STRING - 1, "%s%s", $1, $2); }
 	;
 
 value:
