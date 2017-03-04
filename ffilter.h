@@ -61,6 +61,7 @@ typedef union {
 /*! \brief Supported data types */
 typedef enum {
 	FF_TYPE_UNSUPPORTED = 0x0,	// for unsupported data types
+
 	FF_TYPE_UNSIGNED,
 	FF_TYPE_UNSIGNED_BIG,
 	FF_TYPE_SIGNED,
@@ -73,6 +74,7 @@ typedef enum {
 	FF_TYPE_INT16,
 	FF_TYPE_INT32,
 	FF_TYPE_INT64,
+
 	FF_TYPE_DOUBLE,			/* muzeme si byt jisti, ze se bude pouzivat format IEEE 754. */
 	FF_TYPE_ADDR,
 	FF_TYPE_MAC,

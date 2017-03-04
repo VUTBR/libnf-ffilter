@@ -1,6 +1,6 @@
 /*
 
- Copyright (c) 2013-2015, Tomas Podermanski
+ Copyright (c) 2013-2017, Tomas Podermanski, Imrich Štoffa
 
  This file is part of libnf.net project.
 
@@ -103,7 +103,7 @@ expr:
                         		if (!strcmp($1, const_info[x].name)){
                         			$$ = ff_new_leaf(scanner, filter, const_info[x].field, FF_OP_EQ, const_info[x].cnst); if ($$ == NULL) { YYABORT; }
                         			break;
-                        		}
+                       		}
                         	}
                         	if (!const_info[x].name) { YYABORT; };
                         }
@@ -114,6 +114,7 @@ expr:
 
 list:
 	STRING list         { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $2); if ($$ == NULL) { YYABORT; } }
+//	| STRING list   { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $3); if ($$ == NULL) { YYABORT; } }
 	| STRING RPS        { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
 	;
 

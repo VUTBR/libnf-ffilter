@@ -1,12 +1,12 @@
 //
-// Created by istoffa on 22.8.2016.
+// Created by istoffa on 22.2.2017.
 //
 
 #include <gtest/gtest.h>
 #include <arpa/inet.h>
 
 extern "C" {
-#include "profiles/ffilter.h"
+#include <ffilter.h>
 
 }
 
@@ -18,31 +18,33 @@ int main(int argc, char** argv) {
 
 enum test_record_field {
 	FLD_NONE = 0,
-	FLD_SRC_NUMBER64 = 1,
-	FLD_DST_NUMBER64,
+	FLD_SRC_NUMBER,
+	FLD_DST_NUMBER,
+	FLD_NUMBER64,
 	FLD_NUMBER32,
 	FLD_NUMBER16,
-	FLD_NUMBER8_1,
-	FLD_NUMBER8_2,
-	FLD_NUMBER8_3,
-	FLD_NUMBER8_4,
+	FLD_NUMBER8,
 	FLD_REAL,
 	FLD_MAC_ADDR,
 	FLD_MPLS_STACK_LABEL,
-	FLD_IP_ADDRV4,
-	FLD_IP_ADDRV6,
+	FLD_IP_ADDR,
 	FLD_TIMESTAMP,
 	FLD_MESSAGE,
 	FLD_BINARY_HEAP,
 };
 
-union mock_rec {
+
+struct mock_rec {
 	double real;
 	int64_t i64;
+	int8_t i64_2;
 	int32_t i32;
 	int16_t i16;
-	int8_t i8
+	int8_t i8;
 	char message[40];
+	char mac[6];
+	uint32_t addr[4];
+	uint32_t mpls[10];
 };
 
 /**
@@ -62,100 +64,107 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
 	lvalue->id[0].index = FLD_NONE;
 	lvalue->options = FF_OPTS_NONE;
 
-	if (!strcmp(valstr, "uint")) { 
+	if (!strcmp(valstr, "uint")) {
 		type = FF_TYPE_UNSIGNED;
-		lvalue->id[0].index = FLD_SRC_NUMBER64;
-		lvalue->id[1].index = FLD_DST_NUMBER64;
-		lvalue->options |= FF_OPTS_MULTINODE;
+		lvalue->id[0].index = FLD_SRC_NUMBER;
+		lvalue->id[1].index = FLD_DST_NUMBER;
 
-	} else if (!strcmp(valstr, "src uint")) { 
+	} else if (!strcmp(valstr, "srcuint")) {
 		type = FF_TYPE_UNSIGNED;
-		lvalue->id[0].index = FLD_SRC_NUMBER64;
+		lvalue->id[0].index = FLD_SRC_NUMBER;
 
-	} else if (!strcmp(valstr, "dst uint")) {
+	} else if (!strcmp(valstr, "dstuint")) {
 		type = FF_TYPE_UNSIGNED;
-		lvalue->id[0].index = FLD_DST_NUMBER64;
+		lvalue->id[0].index = FLD_DST_NUMBER;
 
 	} else if (!strcmp(valstr, "ui64")) {
 		type = FF_TYPE_UINT64;
-		lvalue->id[0].index = FLD_SRC_NUMBER64;
+		lvalue->id[0].index = FLD_NUMBER64;
 
-	} else if (!strcmp(valstr, "ui32")) { type = FF_TYPE_UINT32;
+	} else if (!strcmp(valstr, "ui32")) {
+		type = FF_TYPE_UINT32;
 		lvalue->id[0].index = FLD_NUMBER32;
 
-	} else if (!strcmp(valstr, "ui16")) { type = FF_TYPE_UINT16;
+	} else if (!strcmp(valstr, "ui16")) {
+		type = FF_TYPE_UINT16;
 		lvalue->id[0].index = FLD_NUMBER16;
 
-	} else if (!strcmp(valstr, "ui8")) { type = FF_TYPE_UINT8;
-		lvalue->id[0].index = FLD_NUMBER8_1;
+	} else if (!strcmp(valstr, "ui8")) {
+		type = FF_TYPE_UINT8;
+		lvalue->id[0].index = FLD_NUMBER8;
 
-	} else if (!strcmp(valstr, "ui8Multinode")) { type = FF_TYPE_UINT8;
-		lvalue->id[0].index = FLD_NUMBER8_1;
-		lvalue->id[1].index = FLD_NUMBER8_2;
-		lvalue->id[2].index = FLD_NUMBER8_3;
-		lvalue->id[3].index = FLD_NUMBER8_4;
-		lvalue->options |= FF_OPTS_MULTINODE;
+	} else	if (!strcmp(valstr, "int")) {
+		type = FF_TYPE_SIGNED;
+		lvalue->id[0].index = FLD_SRC_NUMBER;
+		lvalue->id[1].index = FLD_DST_NUMBER;
 
-	} else if (!strcmp(valstr, "int")) { type = FF_TYPE_SIGNED;
-		lvalue->id[0].index = FLD_SRC_NUMBER64;
-		lvalue->id[1].index = FLD_DST_NUMBER64;
-		lvalue->options |= FF_OPTS_MULTINODE;
+	} else if (!strcmp(valstr, "srcint")) {
+		type = FF_TYPE_SIGNED;
+		lvalue->id[0].index = FLD_SRC_NUMBER;
 
-	} else if (!strcmp(valstr, "src int")) { type = FF_TYPE_SIGNED;
-		lvalue->id[0].index = FLD_SRC_NUMBER64;
+	} else if (!strcmp(valstr, "dstint")) {
+		type = FF_TYPE_SIGNED;
+		lvalue->id[0].index = FLD_DST_NUMBER;
 
-	} else if (!strcmp(valstr, "dst int")) { type = FF_TYPE_SIGNED;
-		lvalue->id[0].index = FLD_DST_NUMBER64;
+	} else if (!strcmp(valstr, "i64")) {
+		type = FF_TYPE_INT64;
+		lvalue->id[0].index = FLD_NUMBER64;
 
-	} else if (!strcmp(valstr, "i64")) { type = FF_TYPE_INT64;
-		lvalue->id[0].index = FLD_SRC_NUMBER64;
-
-	} else if (!strcmp(valstr, "i32")) { type = FF_TYPE_INT32;
+	} else if (!strcmp(valstr, "i32")) {
+		type = FF_TYPE_INT32;
 		lvalue->id[0].index = FLD_NUMBER32;
 
-	} else if (!strcmp(valstr, "i16")) { type = FF_TYPE_INT16;
+	} else if (!strcmp(valstr, "i16")) {
+		type = FF_TYPE_INT16;
 		lvalue->id[0].index = FLD_NUMBER16;
 
-	} else if (!strcmp(valstr, "i8")) { type = FF_TYPE_INT8;
-		lvalue->id[0].index = FLD_NUMBER8_1;
+	} else if (!strcmp(valstr, "i8")) {
+		type = FF_TYPE_INT8;
+		lvalue->id[0].index = FLD_NUMBER8;
 
-	} else if (!strcmp(valstr, "real")) { type = FF_TYPE_DOUBLE;
+	} else if (!strcmp(valstr, "real")) {
+		type = FF_TYPE_DOUBLE;
 		lvalue->id[0].index = FLD_REAL;
 
-	} else if (!strcmp(valstr, "mac")) { type = FF_TYPE_MAC;
+	} else if (!strcmp(valstr, "mac")) {
+		type = FF_TYPE_MAC;
 		lvalue->id[0].index = FLD_MAC_ADDR;
 
-	} else if (!strcmp(valstr, "mplsLabel")) { type = FF_TYPE_MPLS;			//Unimplemented
+	} else if (!strcmp(valstr, "mplsLabel")) {
+		type = FF_TYPE_MPLS;			//Unimplemented
 		lvalue->id[0].index = FLD_MPLS_STACK_LABEL;
+		lvalue->n = 1;
 
-	} else if (!strcmp(valstr, "mplsExp")) { type = FF_TYPE_MPLS;			//Unimplemented
+	} else if (!strcmp(valstr, "mplsExp")) {
+		type = FF_TYPE_MPLS;			//Unimplemented
 		lvalue->id[0].index = FLD_MPLS_STACK_LABEL;
-		//lvalue->options |= //Set exp selector
+		lvalue->options |= FF_OPTS_MPLS_EXP;
 
-	} else if (!strcmp(valstr, "mplsEos")) { type = FF_TYPE_MPLS;			//Unimplemented
+	} else if (!strcmp(valstr, "mplsEos")) {
+		type = FF_TYPE_MPLS;			//Unimplemented
 		lvalue->id[0].index = FLD_MPLS_STACK_LABEL;
-		//lvalue->options |= //Set eos selector
+		lvalue->options |= FF_OPTS_MPLS_EOS;
 
-	} else if (!strcmp(valstr, "v4addr")) { type = FF_TYPE_ADDR;
-		lvalue->id[0].index = FLD_IP_ADDRV4;
+	} else if (!strcmp(valstr, "addr")) {
+		type = FF_TYPE_ADDR;
+		lvalue->id[0].index = FLD_IP_ADDR;
 
-	} else if (!strcmp(valstr, "v6addr")) { type = FF_TYPE_ADDR;
-		lvalue->id[0].index = FLD_IP_ADDRV6;
-
-	} else if (!strcmp(valstr, "addr")) { type = FF_TYPE_ADDR;
-		lvalue->id[0].index = FLD_IP_ADDRV4;
-		lvalue->id[1].index = FLD_IP_ADDRV6;
-
-	} else if (!strcmp(valstr, "timestamp")) { type = FF_TYPE_TIMESTAMP;
+	} else if (!strcmp(valstr, "timestamp")) {
+		type = FF_TYPE_TIMESTAMP;
 		lvalue->id[0].index = FLD_TIMESTAMP;
 
-	} else if (!strcmp(valstr, "message")) { type = FF_TYPE_STRING;
+	} else if (!strcmp(valstr, "message")) {
+		type = FF_TYPE_STRING;
 		lvalue->id[0].index = FLD_MESSAGE;
 
-	} else if (!strcmp(valstr, "heap")) { type = FF_TYPE_UNSUPPORTED;
+	} else if (!strcmp(valstr, "heap")) {
+		type = FF_TYPE_UNSUPPORTED;
 		lvalue->id[0].index = FLD_BINARY_HEAP;
-	} else if (!strcmp(valstr, "none")) { type = FF_TYPE_UINT8;
+
+	} else if (!strcmp(valstr, "none")) {
+		type = FF_TYPE_UINT8;
 		lvalue->id[0].index = FLD_NONE;
+
 	} else {
 		return FF_ERR_OTHER;
 	}
@@ -178,39 +187,67 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
  */
 ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid, char* buf, size_t *size)
 {
-	struct test_record *trec = (struct test_record*)rec;
+	struct mock_rec *trec = (struct mock_rec*)rec;
 
 	const char *data;
 
 	switch(extid.index) {
-	case FLD_SRC_NUMBER64:
-	case FLD_DST_NUMBER64:
+	case FLD_SRC_NUMBER:
+		data = (char *)&trec->i64;
 		*size = 8;
+		break;
+	case FLD_DST_NUMBER:
+		data = (char *)&trec->i64_2;
+		*size = 8;
+		break;
+	case FLD_NUMBER64:
+		data = (char *)&trec->i64;
+		*size = 8;
+		break;
 	case FLD_NUMBER32:
+		data = (char *)&trec->i32;
 		*size = 4;
+		break;
 	case FLD_NUMBER16:
+		data = (char *)&trec->i16;
 		*size = 2;
-	case FLD_NUMBER8_1:
-	case FLD_NUMBER8_2:
-	case FLD_NUMBER8_3:
-	case FLD_NUMBER8_4:
+		break;
+	case FLD_NUMBER8:
+		data = (char *)&trec->i8;
 		*size = 1;
+		break;
 	case FLD_REAL:
-		*size = 8;
+		data = (char *)&trec->real;
+		*size = sizeof(double);
+		break;
 	case FLD_MAC_ADDR:
-		*size = 6;
+		data = (char *)&trec->mac;
+		*size = sizeof(ff_mac_t);
+		break;
 	case FLD_MPLS_STACK_LABEL:
-		*size = 20;
-	case FLD_IP_ADDRV4:
-		*size = 4;
-	case FLD_IP_ADDRV6:
-		*size = 16;
+		data = (char *)&trec->mpls;
+		*size = sizeof(ff_mpls_stack_t);
+		break;
+	case FLD_IP_ADDR:
+		if (trec->addr[0] == 0 && trec->addr[1] == 0 &&
+		    trec->addr[2] == 0 && trec->addr[3] != 0) {
+			data = (char *) &trec->addr[3];
+			*size = 4;
+		} else {
+			data = (char *) &trec->addr[0];
+			*size = 16;
+		}
+		break;
 	case FLD_TIMESTAMP:
-	
+		data = (char *)&trec->i64;
+		*size = 8;
+		break;
 	case FLD_MESSAGE:
-	case FLD_BINARY_HEAP: 
+		data = &trec->message[0];
+		*size = sizeof(char*);
+		break;
+	case FLD_BINARY_HEAP:
 	case FLD_NONE:
-
 	default : *size = 0; return FF_ERR_OTHER;
 	}
 
@@ -236,8 +273,8 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 ff_error_t test_rval_map_func (struct ff_s * filter, const char *valstr, ff_type_t test_type, ff_extern_id_t extid, char* buf, size_t *size)
 {
 	if (test_type == FF_TYPE_SIGNED || test_type == FF_TYPE_UNSIGNED || test_type == FF_TYPE_INT16) {
-		if (!strcmp(valstr, "tenBelow")) {
-			*(uint64_t *) buf = -10;
+		if (!strcmp(valstr, "magic_number")) {
+			*(uint64_t *) buf = 6996;
 			*size = sizeof(uint64_t);
 		} else if (!strcmp(valstr, "kilobyte")) {
 			*(uint64_t *) buf = 1000;
@@ -256,9 +293,9 @@ class filter_types_test : public :: testing::Test {
 protected:
 
 	char *expr;
-	union mock_rec rec;
+	struct mock_rec rec;
 	ff_options_t* test_callbacks;
-	ff_t *filter;
+	ff_t *filter = NULL;
 	char *buffer;
 
 	virtual void SetUp() {
@@ -269,7 +306,7 @@ protected:
 		test_callbacks->ff_lookup_func = test_lookup_func;
 		test_callbacks->ff_rval_map_func = test_rval_map_func;
 
-		memset(&rec, 0,sizeof(struct test_record));
+		memset(&rec, 0, sizeof(struct mock_rec));
 		filter = NULL;
 		expr = NULL;
 	}
@@ -277,28 +314,54 @@ protected:
 	virtual void TearDown() {
 		ff_options_free(test_callbacks);
 		free(buffer);
-		//ff_free(filter);
+		ff_free(filter);
 	}
 
-	void fillInt(int64_t val) {
+	/**
+	 * \brief Helper functions to work with mocked record
+	 * Purpose is just to fill right fields in record, types are
+	 * dynamic according to FF_TYPE of filter identifier
+	 */
+	void fillInt64_2(int64_t val)
+	{
+		rec.i64_2 = val;
+	}
+	void fillInt64(int64_t val) {
 		rec.i64 = val;
 	}
-	void fillInt(int32_t val) {
+	void fillInt32(int32_t val) {
 		rec.i32 = val;
 	}
-	void fillInt(int16_t val) {
+	void fillInt16(int16_t val) {
 		rec.i16 = val;
 	}
-	void fillInt(int8_t val) {
+	void fillInt8(int8_t val) {
 		rec.i8 = val;
 	}
 	void fillReal(double val) {
 		rec.real = val;
 	}
-	void fillMessage(char* val) {
-		strncpy(&rec.message, val, 40);
+	void fillMessage(const char* val) {
+		strncpy(&rec.message[0], val, 40);
+	}
+	void fillIP(const char* val)
+	{
+		if (inet_pton(AF_INET, val, &rec.addr[3])) {}
+		else if (inet_pton(AF_INET6, val, &rec.addr[0])) {}
+		else {rec.addr[0] = 0;}
 	}
 
+	void fillMAC(char val1, char val2, char val3, char val4, char val5, char val6) {
+		rec.message[0]=val1;
+		rec.message[1]=val2;
+		rec.message[2]=val3;
+		rec.message[3]=val4;
+		rec.message[4]=val5;
+		rec.message[5]=val6;
+	}
+	void fillMPLS(const char* val) {
+		memcpy(rec.message, val, strlen(val) < 40 ? strlen(val) : 40);
+	}
 
 	/*
 	void recFillStandard()
@@ -322,19 +385,328 @@ protected:
 		strncpy(&rec.binary_heap[0],"\x0a\x0d\xff", sizeof(rec.binary_heap));
 	}*/
 
+/**
+ *  \brief Helper functions to shorten parameter list and better readability
+ */
+	ff_error_t init(const char* str)
+	{
+		ff_free(filter);
+		return ff_init(&filter, str, test_callbacks);
+	}
+
+	int eval(struct mock_rec* rec) {
+		return ff_eval(filter, (char *)rec);
+	}
 };
 
-/**
- *  \brief Helper macros to shorten parameter list and better readability
- */
-#define ff_init(str) ff_init(&filter, str, test_callbacks)
-#define ff_eval(rec) ff_eval(filter, (void*(rec))
 
-TEST_F(filter_types_test, integer_test) {
-	fillInt(10LL);	
-	
-	EXPECT_EQ(FF_OK, ff_init("int 10"));
-	ASSERT_TRUE(ff_eval(&rec));
-	
+TEST_F(filter_types_test, feature)
+{
 }
 
+//Left associable, priotrities 1.NEG 2.AND, 3.OR
+//Use brackets to modify
+TEST_F(filter_types_test, Logic_expressions)
+{
+	ASSERT_EQ(FF_OK, init("srcint 10"));
+	fillInt64(10);
+	fillInt64_2(5);
+	fillMessage("ahoj");
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("not srcint 10"));
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("srcint 10 or message ahoj"));
+	fillInt64(3);
+	EXPECT_TRUE(eval(&rec));
+
+	//And precedence
+	ASSERT_EQ(FF_OK, init("srcint 10 or message ahoj and addr 192.168.0.1"));
+	fillIP("192.168.0.1");
+	EXPECT_TRUE(eval(&rec));
+	ASSERT_EQ(FF_OK, init("srcint 10 or message ahoj and not addr 192.168.0.1"));
+	EXPECT_FALSE(eval(&rec));
+	ASSERT_EQ(FF_OK, init("not srcint 10 or message ahoj and addr 192.168.0.1)"));
+	EXPECT_TRUE(eval(&rec));
+	ASSERT_EQ(FF_OK, init("not (srcint 10 or message ahoj and addr 192.168.0.1)"));
+	EXPECT_FALSE(eval(&rec));
+
+}
+
+TEST_F(filter_types_test, Multinode_eval)
+{
+	ASSERT_EQ(FF_OK, init("uint 10")); //Init must be successful otherwise there's no point to continue
+
+	//Value in 1. or 2. field should match
+	fillInt64(10);
+	fillInt64_2(0);
+	EXPECT_TRUE(eval(&rec));
+
+	fillInt64(0);
+	fillInt64_2(10);
+	EXPECT_TRUE(eval(&rec));
+
+	fillInt64(0);
+	fillInt64_2(0);
+	EXPECT_FALSE(eval(&rec)); //None of both matches - should fail
+	//Cleanup is automatic
+}
+
+TEST_F(filter_types_test, Unsigned_integer) {
+
+	// Range + default operator test (eq)
+
+	ASSERT_EQ(FF_OK, init("srcuint 18446744073709551615")); // Just right
+	fillInt64(UINT64_MAX);
+	EXPECT_TRUE(eval(&rec)); // Equality test
+
+	ASSERT_EQ(FF_OK, init("srcuint = 0x01020408")); // = test and hexa input
+	fillInt64(0x01020408);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(0x01020409);
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("srcuint > 0x01020408")); // > test and hexa input
+	fillInt64(0x02000000);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(0x01000000);
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("srcuint < 0x01020408")); // < test and hexa input
+	fillInt64(0x02000000);
+	EXPECT_FALSE(eval(&rec));
+	fillInt64(0x01000000);
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("srcuint & 0x0d")) << &filter->error_str[0]; // flag test
+	fillInt64(0x1e);
+	EXPECT_FALSE(eval(&rec));
+	fillInt64(0x1F);
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("srcuint in [10 52 8]")) << &filter->error_str[0];  // list compare test and input
+	fillInt64(52);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(10);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(8);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(100);
+	EXPECT_FALSE(eval(&rec));
+
+	//Negative
+	EXPECT_NE(FF_OK, init("srcuint 18446744073709551616")); // Over max
+
+	EXPECT_NE(FF_OK, init("srcuint -1")); // Negative
+}
+
+TEST_F(filter_types_test, Signed_integer)
+{
+	// Range + default operator test (eq)
+
+	ASSERT_EQ(FF_OK, init("srcint 9223372036854775807")); // Just right
+	fillInt64(INT64_MAX);
+	EXPECT_TRUE(eval(&rec)); // Equality test
+
+	ASSERT_EQ(FF_OK, init("srcint -9223372036854775808")); // Just right
+	fillInt64(INT64_MIN);
+	EXPECT_TRUE(eval(&rec)); // Equality test
+
+	ASSERT_EQ(FF_OK, init("srcint = 0x01020408")); // = test and hexa input
+	fillInt64(0x01020408);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(0x01020409);
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("srcint > 0x01020408")); // > test and hexa input
+	fillInt64(0x02000000);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(-65535);
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("srcint < 0x01020408")); // < test and hexa input
+	fillInt64(0x02000000);
+	EXPECT_FALSE(eval(&rec));
+	fillInt64(-65535);
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("srcint & 0x0d")) << &filter->error_str[0]; // flag test
+	fillInt64(0x1e);
+	EXPECT_FALSE(eval(&rec));
+	fillInt64(0x1F);
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("srcint in [10 -52 8]")) << &filter->error_str[0];  // list compare test and input
+	fillInt64(-52);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(10);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(8);
+	EXPECT_TRUE(eval(&rec));
+	fillInt64(-100);
+	EXPECT_FALSE(eval(&rec));
+
+	//Negative
+	EXPECT_NE(FF_OK, init("srcint 9223372036854775808")); // Over max
+
+	EXPECT_NE(FF_OK, init("srcint -9223372036854775809")); // Under min
+}
+
+TEST_F(filter_types_test, IP_addr)
+{
+	ASSERT_EQ(FF_OK, init("addr 192.168.0.1"));
+	fillIP("192.168.0.1");
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("addr 192.168.0.1 255.255.255.0"));
+	fillIP("192.168.0.230");
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("addr = 194/4"));
+	fillIP("192.168.0.230");
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("addr in [192.168.0.1 10.10/16 172.16.8/24]"));
+	fillIP("10.10.10.1");
+	EXPECT_TRUE(eval(&rec));
+	fillIP("172.16.9.23");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("addr 2a02:26f0:64::170e:5cf7"));
+	fillIP("2a02:26f0:64::170e:5cf7");
+	EXPECT_TRUE(eval(&rec));
+	//TODO: V6 tests
+
+	//Negative
+	EXPECT_NE(FF_OK, init("addr 194/11"));
+	EXPECT_NE(FF_OK, init("addr 323.123.13.12"));
+	EXPECT_NE(FF_OK, init("addr c3.12.a3.FF"));
+	EXPECT_NE(FF_OK, init("addr 65535"));
+	EXPECT_NE(FF_OK, init("addr 192.168.0.1 255.255.240.240"));
+	EXPECT_NE(FF_OK, init("addr 256/4"));
+	EXPECT_NE(FF_OK, init("addr www.google.com"));
+	EXPECT_NE(FF_OK, init("addr > 192.168.0.1"));
+	EXPECT_NE(FF_OK, init("addr < 192.168.0.1"));
+	EXPECT_NE(FF_OK, init("addr & 192.168.0.1"));
+}
+
+TEST_F(filter_types_test, MAC)
+{
+	ASSERT_EQ(FF_OK, init("mac aa:bb:cc:dd:ee:ff"));
+	fillMAC(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff);
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mac 01:23:45:67:89"));
+	fillMAC(0x01, 0x23, 0x45, 0x56, 0x67, 0x89);
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mac = 1:23:45:67:89"));
+	fillMAC(0x01, 0x23, 0x45, 0x56, 0x67, 0x89);
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mac in [ 1:23:45:67:0 0:0:0:0:0:0]"));
+	fillMAC(0x01, 0x23, 0x45, 0x56, 0x67, 0x0);
+	EXPECT_TRUE(eval(&rec));
+	fillMAC(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff);
+	EXPECT_FALSE(eval(&rec));
+
+	EXPECT_NE(FF_OK, init("mac > 1:23:45:67:89:0"));
+	EXPECT_NE(FF_OK, init("mac < 1:23:45:67:89:0"));
+	EXPECT_NE(FF_OK, init("mac & 1:23:45:67:89:0"));
+
+	EXPECT_NE(FF_OK, init("mac 9:0:g:h:33:23223"));
+	EXPECT_NE(FF_OK, init("mac 9:0:g:h:33:23:1:1:1"));
+	EXPECT_NE(FF_OK, init("mac popokatepetl"));
+}
+
+
+//Escaping ? not really
+//TODO: define how operators will work
+TEST_F(filter_types_test, string)
+{
+	ASSERT_EQ(FF_OK, init("message Helloworld"));
+	fillMessage("Helloworld");
+	ASSERT_EQ(FF_OK, init("message `Hello world`"));
+
+	EXPECT_NE(FF_OK, init("message !@#$%^&*()_+=-0987654321`~"));
+	EXPECT_NE(FF_OK, init("message ??"));
+}
+
+TEST_F(filter_types_test, real)
+{
+	ASSERT_EQ(FF_OK, init("real 0.0001")); //Does it makes sense to test for equality of double number ?
+	fillReal(1e-4);
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("real = 0.0001")); //Does it makes sense to test for equality of double number ?
+	fillReal(1e-4);
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("real > 3.13"));
+	fillReal(3.14);
+	EXPECT_TRUE(eval(&rec));
+	fillReal(3.12);
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("real < 3.13e-1"));
+	fillReal(0.2);
+	EXPECT_TRUE(eval(&rec));
+	fillReal(1.2);
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("real in [1.59 -9.87654321e3 0.1e-12]")); //Does this makes sense ?
+	fillReal(-9.87654321e3);
+	EXPECT_TRUE(eval(&rec));
+	fillReal(9.86);
+	EXPECT_FALSE(eval(&rec));
+
+	EXPECT_NE(FF_OK, init("real & 3.14")); //Does not makes sense but is compilable
+
+	EXPECT_NE(FF_OK, init("real foobar"));
+	EXPECT_NE(FF_OK, init("real 0x2f29835.7e-10")); //seems like this works
+	EXPECT_NE(FF_OK, init("real #@!$"));
+	EXPECT_NE(FF_OK, init("real \x01\x10\x13"));
+	EXPECT_NE(FF_OK, init("real in [ 10.1 invalid ]"));
+}
+
+//Mpls uses same input routine for all three subtypes
+//TODO: fill in mpls stack
+TEST_F(filter_types_test, mpls_Label)
+{
+	ASSERT_EQ(FF_OK, init("mplsLabel 36"));
+	fillMPLS("\x57\x00\x00\x00\x00\x00"); //Hexa numbers are data ... not sure how does stack looks like
+	ASSERT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mplsLabel"));
+	ASSERT_TRUE(eval(&rec));
+
+
+	EXPECT_NE(FF_OK, init("mplsLabel"));
+}
+
+//TODO: fill in mpls stack
+TEST_F(filter_types_test, mpls_Eos)
+{
+	ASSERT_EQ(FF_OK, init("mplsEos 1"));
+	fillMPLS("\x57\x00\x00\x00\x00\x00");
+	ASSERT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mplsEos 0"));
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mplsEos 5"));
+	EXPECT_FALSE(eval(&rec));
+
+	EXPECT_NE(FF_OK, init("mplsEos -x2"));
+	EXPECT_NE(FF_OK, init("mplsLabel"));
+}
+
+//TODO: fill in mpls stack
+TEST_F(filter_types_test, mpls_Exp)
+{
+	ASSERT_EQ(FF_OK, init("mplsExp 0"));
+	ASSERT_TRUE(eval(&rec));
+
+	EXPECT_NE(FF_OK, init("mplsExp hola"));
+}

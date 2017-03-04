@@ -522,6 +522,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 		// unsigned with undefined data size (internally mapped to uint64_t in network order) */
 	case FF_TYPE_UNSIGNED_BIG:
 	case FF_TYPE_UNSIGNED:
+	case FF_TYPE_MPLS:
 		if (str_to_uint64(filter, valstr, &node->value, &node->vsize)) {
 			node->value = calloc(1, sizeof(uint64_t));
 			if (!node->value) return FF_ERR_NOMEM;
@@ -1006,6 +1007,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 			default: return -1;
 			}
 		case FF_TYPE_MPLS:
+			//TODO: Problem here...
 			switch(node->opts) {
 			case FF_OPTS_MPLS_LABEL:
 				res = *((uint32_t *) node->value) > ((ff_mpls_label_t *) buf)[node->n-1].label;
@@ -1375,4 +1377,9 @@ ff_error_t ff_free(ff_t *filter) {
 
 	return FF_OK;
 }
+
+//TODO: pass by reference
+//TODO: internal typedefs
+//TODO: tests/
+//TODO: profiling
 

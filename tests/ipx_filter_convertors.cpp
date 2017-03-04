@@ -7,8 +7,8 @@
 #include <arpa/inet.h>
 
 extern "C" {
-#include "profiles/ffilter.h"
-#include "profiles/ffilter_internal.h"
+#include <ffilter.h>
+#include <ffilter_internal.h>
 }
 
 int main(int argc, char** argv) {

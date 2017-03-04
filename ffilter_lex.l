@@ -1,6 +1,6 @@
 /*
 
- Copyright (c) 2013-2015, Tomas Podermanski
+ Copyright (c) 2013-2017, Tomas Podermanski, Imrich Štoffa
 
  This file is part of libnf.net project.
 

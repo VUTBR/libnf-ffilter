@@ -1,14 +1,19 @@
 cmake_minimum_required(VERSION 2.8.8)
 
-project(nf-filter)
+project(nffilter)
 
-set(NF-FILTER_DESCRIPTION, "Lorem ipsum")
+set(NF_FILTER_DESCRIPTION, "Lorem ipsum")
 set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} -Wall -fvisibility=hidden -std=gnu11")
 set(CMAKE_C_FLAGS_RELEASE   "-O3 -DNDEBUG")
 set(CMAKE_C_FLAGS_DEBUG     "-g -O0 -Wextra -pedantic")
 
-set(nf-filter_VERSION_MAJOR 1)
-set(nf-filter_VERSION_MINOR 0)
+set(nf_filter_VERSION_MAJOR 1)
+set(nf_filter_VERSION_MINOR 0)
+
+set(SOURCES ${SOURCES} "ffilter.c")
+set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.c")
+set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c")
+#set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_internal.h")
 
 #pass cmake settings
 configure_file(
@@ -24,29 +29,29 @@ if(NOT BISON_FOUND)
 elseif (NOT FLEX_FOUND)
     message(WARNING "Missing Flex.\nTarget bison does not exist.")
 else()
-    # Create custom target for flex/lex (note the outputs)
-#    add_custom_target(nf-parser
-#            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#            COMMAND ${BISON_EXECUTABLE} -Wno-other -l -o ffilter_gram.c --defines=ffilter_gram.h ffilter_gram.y
-#            COMMAND ${FLEX_EXECUTABLE} -L -o ffilter_lex.c --header-file=ffilter_lex.h ffilter_lex.l
-#            #Work-aroud the flex outputting lex.yy.c
-#            COMMAND test -f lex.yy.c && mv -T lex.yy.c ffilter_lex.c
-#            SOURCES ffilter_gram.c ffilter_gram.h ffilter_lex.c ffilter_lex.h
-#            )
-#
-    add_custom_command(
-            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c ${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.h
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            COMMAND ${FLEX_EXECUTABLE} -L -o ${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c --header=${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.h ffilter_lex.l
-            COMMAND test -f lex.yy.c && mv lex.yy.c ${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c
 
+
+    add_custom_command(
+            #SOURCE ffilter_lex.l
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c
+                    ${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.h
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMAND ${FLEX_EXECUTABLE}
+            ARGS -L -o ${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c
+                    --header=${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.h ffilter_lex.l
+            COMMAND test -f lex.yy.c && mv lex.yy.c ${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c
     )
     add_custom_command(
-            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.c ${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.h
+            #SOURCE ffilter_gram.y
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.c
+                   ${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.h
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            COMMAND ${BISON_EXECUTABLE} -Wno-other -l -o ${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.c --defines=${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.h ffilter_gram.y
+            COMMAND ${BISON_EXECUTABLE}
+            ARGS -Wno-other -l -o ${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.c
+                    --defines=${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.h ffilter_gram.y
     )
 endif()
+
 
 ###Google test
 # Download and unpack googletest at configure time
@@ -80,17 +85,26 @@ if (CMAKE_VERSION VERSION_LESS 2.8.11)
     include_directories("${gtest_SOURCE_DIR}/include")
 endif()
 
+include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+
+find_library($NFF_LIB nf_filter)
+
 # Now simply link against gtest or gtest_main as needed. Eg
 #TODO: tests
-add_executable(example tests/ipx_filter_convertors.cpp)
-target_link_libraries(example gtest_main nf-filter)
-add_test(NAME example_test COMMAND example)
+add_executable(str_convertors tests/ipx_filter_convertors.cpp)
+target_link_libraries(str_convertors
+        nf_filter
+        gtest_main)
+add_test(NAME str_convertors_test COMMAND str_convertors)
+
+add_executable(data_types tests/ipx_filter_data_types.cpp)
+target_link_libraries(data_types
+        nf_filter
+        gtest_main)
+add_test(NAME data_types_test COMMAND data_types)
+
 ###Google test
 
-
-# Since scanner and parser sources does not exists yet when cmake is run, mark
-# it as generated
-
 # Make library target
-include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR})
-add_library(nf-filter SHARED ffilter.c ffilter_gram.c ffilter_lex.c)
+#add_library(nf_filter SHARED ${SOURCES})
+add_library(nf_filter STATIC ${SOURCES})
