@@ -4,10 +4,10 @@
 
 #include <gtest/gtest.h>
 #include <arpa/inet.h>
+#include <stdlib.h>
 
 extern "C" {
 #include <ffilter.h>
-
 }
 
 //TODO: Test ffilter interface
@@ -139,6 +139,7 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
 		type = FF_TYPE_MPLS;			//Unimplemented
 		lvalue->id[0].index = FLD_MPLS_STACK_LABEL;
 		lvalue->options |= FF_OPTS_MPLS_EXP;
+		lvalue->n = 1;
 
 	} else if (!strcmp(valstr, "mplsEos")) {
 		type = FF_TYPE_MPLS;			//Unimplemented
@@ -352,38 +353,16 @@ protected:
 	}
 
 	void fillMAC(char val1, char val2, char val3, char val4, char val5, char val6) {
-		rec.message[0]=val1;
-		rec.message[1]=val2;
-		rec.message[2]=val3;
-		rec.message[3]=val4;
-		rec.message[4]=val5;
-		rec.message[5]=val6;
+		rec.mac[0]=val1;
+		rec.mac[1]=val2;
+		rec.mac[2]=val3;
+		rec.mac[3]=val4;
+		rec.mac[4]=val5;
+		rec.mac[5]=val6;
 	}
 	void fillMPLS(const char* val) {
-		memcpy(rec.message, val, strlen(val) < 40 ? strlen(val) : 40);
+		memcpy(rec.mpls, val, 40);
 	}
-
-	/*
-	void recFillStandard()
-	{
-		rec.src_number64 = 0x0000000000000101ULL;
-		rec.dst_number64 = -258ULL;
-		rec.number32 = 0x80000001UL;
-		rec.number16 = 0x03e8;
-		rec.number8_1 = 0x80;
-		rec.number8_2 = 0x08;
-		rec.number8_3 = 0xe0;
-		rec.number8_4 = 0x0e;
-		rec.real = 3.1428;
-		rec.timestamp = 3900000; //1-1-1970 2:5:0.000 - should be good to use UTC time since this is error prone
-		strncpy((char*)(&rec.mac_addr)[0], "\x01\x02\x03\x04\x05\x06", sizeof(rec.mac_addr));
-		rec.mpls_stack_label[0] = 0x000000fb;
-		//strncpy((char*)(&rec.mpls_stack_label)[0], "\x00\xfb", sizeof(rec.mpls_stack_label));	// label is 15, exp is 5, eos is 1
-		inet_pton(AF_INET, "192.168.0.1", &rec.ip_addrv4);
-		inet_pton(AF_INET6, "fe80::e6f8:9cff:fedc:5b77", &rec.ip_addrv6);
-		strncpy(&rec.message[0],"http://youtube.com/index", sizeof(rec.message));
-		strncpy(&rec.binary_heap[0],"\x0a\x0d\xff", sizeof(rec.binary_heap));
-	}*/
 
 /**
  *  \brief Helper functions to shorten parameter list and better readability
@@ -400,9 +379,6 @@ protected:
 };
 
 
-TEST_F(filter_types_test, feature)
-{
-}
 
 //Left associable, priotrities 1.NEG 2.AND, 3.OR
 //Use brackets to modify
@@ -427,17 +403,18 @@ TEST_F(filter_types_test, Logic_expressions)
 	EXPECT_TRUE(eval(&rec));
 	ASSERT_EQ(FF_OK, init("srcint 10 or message ahoj and not addr 192.168.0.1"));
 	EXPECT_FALSE(eval(&rec));
-	ASSERT_EQ(FF_OK, init("not srcint 10 or message ahoj and addr 192.168.0.1)"));
+	ASSERT_EQ(FF_OK, init("not srcint 10 or message ahoj and addr 192.168.0.1"));
 	EXPECT_TRUE(eval(&rec));
 	ASSERT_EQ(FF_OK, init("not (srcint 10 or message ahoj and addr 192.168.0.1)"));
 	EXPECT_FALSE(eval(&rec));
+	fillIP("192.168.0.2");
+	EXPECT_TRUE(eval(&rec));
 
 }
 
 TEST_F(filter_types_test, Multinode_eval)
 {
 	ASSERT_EQ(FF_OK, init("uint 10")); //Init must be successful otherwise there's no point to continue
-
 	//Value in 1. or 2. field should match
 	fillInt64(10);
 	fillInt64_2(0);
@@ -453,10 +430,19 @@ TEST_F(filter_types_test, Multinode_eval)
 	//Cleanup is automatic
 }
 
-TEST_F(filter_types_test, Unsigned_integer) {
+TEST_F(filter_types_test, coma_separator_in_list)
+{
+	ASSERT_EQ(FF_OK, init("uint in [10, 11, 12]"));
+	fillInt64(1);
+	fillInt64_2(11);
+	EXPECT_TRUE(eval(&rec));
+
+	EXPECT_NE(FF_OK, init("uint in [,10, 11,]"));
+}
+
+TEST_F(filter_types_test, unsigned_integer) {
 
 	// Range + default operator test (eq)
-
 	ASSERT_EQ(FF_OK, init("srcuint 18446744073709551615")); // Just right
 	fillInt64(UINT64_MAX);
 	EXPECT_TRUE(eval(&rec)); // Equality test
@@ -499,12 +485,13 @@ TEST_F(filter_types_test, Unsigned_integer) {
 	EXPECT_NE(FF_OK, init("srcuint 18446744073709551616")); // Over max
 
 	EXPECT_NE(FF_OK, init("srcuint -1")); // Negative
+
+	EXPECT_NE(FF_OK, init("srcuint invalid-input"));
 }
 
-TEST_F(filter_types_test, Signed_integer)
+TEST_F(filter_types_test, signed_integer)
 {
 	// Range + default operator test (eq)
-
 	ASSERT_EQ(FF_OK, init("srcint 9223372036854775807")); // Just right
 	fillInt64(INT64_MAX);
 	EXPECT_TRUE(eval(&rec)); // Equality test
@@ -551,9 +538,11 @@ TEST_F(filter_types_test, Signed_integer)
 	EXPECT_NE(FF_OK, init("srcint 9223372036854775808")); // Over max
 
 	EXPECT_NE(FF_OK, init("srcint -9223372036854775809")); // Under min
+
+	EXPECT_NE(FF_OK, init("srcint invalid-input"));
 }
 
-TEST_F(filter_types_test, IP_addr)
+TEST_F(filter_types_test, ip_addr)
 {
 	ASSERT_EQ(FF_OK, init("addr 192.168.0.1"));
 	fillIP("192.168.0.1");
@@ -573,10 +562,37 @@ TEST_F(filter_types_test, IP_addr)
 	fillIP("172.16.9.23");
 	EXPECT_FALSE(eval(&rec));
 
+	EXPECT_EQ(FF_OK, init("addr in [ 192.168.0.1 255.255.255.0 ]"));
+	fillIP("192.168.0.240");
+	EXPECT_FALSE(eval(&rec));
+	fillIP("255.255.255.0");
+	EXPECT_TRUE(eval(&rec));
+
 	ASSERT_EQ(FF_OK, init("addr 2a02:26f0:64::170e:5cf7"));
 	fillIP("2a02:26f0:64::170e:5cf7");
 	EXPECT_TRUE(eval(&rec));
-	//TODO: V6 tests
+	fillIP("2a02:26f0:64::170e:0");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("addr 2008:608::1"));
+	fillIP("2008:608::1");
+	EXPECT_TRUE(eval(&rec));
+	fillIP("2008:1608::1");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("addr 2008:608::0/ 32"));
+	fillIP("2008:608::50:1");
+	EXPECT_TRUE(eval(&rec));
+	fillIP("2008:609::50:1");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("addr 2008:0:0:0:0:0:0:2"));
+	fillIP("2008:0:0:0:0:0:0:2");
+	EXPECT_TRUE(eval(&rec));
+	ASSERT_EQ(FF_OK, init("addr = fe80::e6f8:9cff:fedc:5b77"));
+	fillIP("fe80::e6f8:9cff:fedc:5b77");
+	EXPECT_TRUE(eval(&rec));
+
 
 	//Negative
 	EXPECT_NE(FF_OK, init("addr 194/11"));
@@ -586,12 +602,14 @@ TEST_F(filter_types_test, IP_addr)
 	EXPECT_NE(FF_OK, init("addr 192.168.0.1 255.255.240.240"));
 	EXPECT_NE(FF_OK, init("addr 256/4"));
 	EXPECT_NE(FF_OK, init("addr www.google.com"));
+	EXPECT_NE(FF_OK, init("addr 2008:608::0 /32"));
 	EXPECT_NE(FF_OK, init("addr > 192.168.0.1"));
 	EXPECT_NE(FF_OK, init("addr < 192.168.0.1"));
 	EXPECT_NE(FF_OK, init("addr & 192.168.0.1"));
+	EXPECT_NE(FF_OK, init("addr in [ 192.168.0.1 255.255.255.0 ahoj]"));
 }
 
-TEST_F(filter_types_test, MAC)
+TEST_F(filter_types_test, mac)
 {
 	ASSERT_EQ(FF_OK, init("mac aa:bb:cc:dd:ee:ff"));
 	fillMAC(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff);
@@ -627,10 +645,47 @@ TEST_F(filter_types_test, string)
 {
 	ASSERT_EQ(FF_OK, init("message Helloworld"));
 	fillMessage("Helloworld");
-	ASSERT_EQ(FF_OK, init("message `Hello world`"));
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("message & Helloworld"));
+	fillMessage("world");
+	EXPECT_TRUE(eval(&rec));
+	fillMessage("worldd");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("message = Helloworld"));
+	fillMessage("Helloworld");
+	EXPECT_TRUE(eval(&rec));
+	fillMessage("world");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("message < Helloworld"));
+	fillMessage("world");
+	EXPECT_TRUE(eval(&rec));
+	fillMessage("worldworldworld");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("message > Helloworld"));
+	fillMessage("world");
+	EXPECT_FALSE(eval(&rec));
+	fillMessage("worldworldworld");
+	EXPECT_TRUE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("message in [ Helloworld tlrd etc... ]"));
+	fillMessage("tlrd");
+	EXPECT_TRUE(eval(&rec));
+	fillMessage("etc...");
+	EXPECT_TRUE(eval(&rec));
+	fillMessage("world");
+	EXPECT_FALSE(eval(&rec));
+	fillMessage("foobar");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("message Helloworld"));
+	ASSERT_EQ(FF_OK, init("message Hello world"));
 
 	EXPECT_NE(FF_OK, init("message !@#$%^&*()_+=-0987654321`~"));
-	EXPECT_NE(FF_OK, init("message ??"));
+	EXPECT_NE(FF_OK, init("message multi word string whiht no quotes"));
 }
 
 TEST_F(filter_types_test, real)
@@ -671,42 +726,126 @@ TEST_F(filter_types_test, real)
 }
 
 //Mpls uses same input routine for all three subtypes
-//TODO: fill in mpls stack
+//The trick here is that n variable must be set to 1 to mark desired label to be evaluated
 TEST_F(filter_types_test, mpls_Label)
 {
-	ASSERT_EQ(FF_OK, init("mplsLabel 36"));
-	fillMPLS("\x57\x00\x00\x00\x00\x00"); //Hexa numbers are data ... not sure how does stack looks like
-	ASSERT_TRUE(eval(&rec));
+	ASSERT_EQ(FF_OK, init("mplsLabel 0"));
+	//According to ndfump 1.label 2.exp 3.eos: r->mpls_label[0] >> 4 , (r->mpls_label[0] & 0xF ) >> 1, r->mpls_label[0] & 1,
+	//Setting 1st label
+	fillMPLS("\x0f\x00\x00\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x0f\x00\xa0\x00");
+	EXPECT_FALSE(eval(&rec));
 
-	ASSERT_EQ(FF_OK, init("mplsLabel"));
-	ASSERT_TRUE(eval(&rec));
+	ASSERT_EQ(FF_OK, init("mplsLabel = 36"));
+	fillMPLS("\x4f\x02\x00\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x60\x00\x00\x00");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mplsLabel 574373")); //\b 1000 1100 0011 1010 0101 20bits to make sense of ordering
+	fillMPLS("\x5f\x3a\x8c\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x57\x3a\x8c\x01");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x67\x3a\x7c\x01");
+	EXPECT_FALSE(eval(&rec));
 
 
-	EXPECT_NE(FF_OK, init("mplsLabel"));
+	EXPECT_NE(FF_OK, init("mplsLabel > 10"));
+	EXPECT_NE(FF_OK, init("mplsLabel < 10"));
+	EXPECT_NE(FF_OK, init("mplsLabel in [10 11]"));
+
+	EXPECT_NE(FF_OK, init("mplsLabel & 10"));
+	EXPECT_NE(FF_OK, init("mplsLabel invalid-input"));
 }
 
-//TODO: fill in mpls stack
+//EOS test for position of eos mark counting from 1
 TEST_F(filter_types_test, mpls_Eos)
 {
 	ASSERT_EQ(FF_OK, init("mplsEos 1"));
-	fillMPLS("\x57\x00\x00\x00\x00\x00");
-	ASSERT_TRUE(eval(&rec));
-
-	ASSERT_EQ(FF_OK, init("mplsEos 0"));
+	fillMPLS("\x57\x00\x00\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x56\x00\x00\x00");
 	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mplsEos = 2"));
+	fillMPLS("\x57\x00\x00\x00");
+	EXPECT_FALSE(eval(&rec));
+	fillMPLS("\x56\x00\x00\x00"
+			 "\x51\x00\x00\x00");
+	EXPECT_TRUE(eval(&rec));
 
 	ASSERT_EQ(FF_OK, init("mplsEos 5"));
+	fillMPLS("\x51\x00\x00\x00");
 	EXPECT_FALSE(eval(&rec));
+	fillMPLS("\x50\x00\x00\x00");
+	EXPECT_FALSE(eval(&rec));
+	fillMPLS("\x56\x00\x00\x00"
+			 "\x66\x00\x00\x00"
+			 "\x72\x00\x00\x00"
+			 "\x50\x04\x00\x00"
+			 "\x51\x02\x00\x00");
+	EXPECT_TRUE(eval(&rec));
 
-	EXPECT_NE(FF_OK, init("mplsEos -x2"));
-	EXPECT_NE(FF_OK, init("mplsLabel"));
+	//Neg for invalid operators
+	EXPECT_NE(FF_OK, init("mplsEos > 10"));
+	EXPECT_NE(FF_OK, init("mplsEos < 10"));
+	EXPECT_NE(FF_OK, init("mplsEos in [10 11]"));
+
+	EXPECT_NE(FF_OK, init("mplsEos & 10"));
+	EXPECT_NE(FF_OK, init("mplsEos invalid-input"));
 }
 
-//TODO: fill in mpls stack
 TEST_F(filter_types_test, mpls_Exp)
 {
 	ASSERT_EQ(FF_OK, init("mplsExp 0"));
-	ASSERT_TRUE(eval(&rec));
+	fillMPLS("\x51\x00\x00\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x00\x00\x00\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\xf1\x0f\x00\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x4b\x00\x00\x00");
+	EXPECT_FALSE(eval(&rec));
 
-	EXPECT_NE(FF_OK, init("mplsExp hola"));
+	ASSERT_EQ(FF_OK, init("mplsExp 3"));
+	fillMPLS("\x56\x00\x00\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x4b\x00\x0f\x00");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mplsExp 1"));
+	fillMPLS("\x43\x00\x0f\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x45\x00\x0f\x00");
+	EXPECT_FALSE(eval(&rec));
+
+	ASSERT_EQ(FF_OK, init("mplsExp = 7"));
+	fillMPLS("\x3e\x00\x00\x00");
+	EXPECT_TRUE(eval(&rec));
+	fillMPLS("\x3a\x00\x00\x00");
+	EXPECT_FALSE(eval(&rec));
+
+
+	//Negative for invalid operators
+	EXPECT_NE(FF_OK, init("mplsExp > 10"));
+	EXPECT_NE(FF_OK, init("mplsExp < 10"));
+	EXPECT_NE(FF_OK, init("mplsExp in [10 11]"));
+
+	EXPECT_NE(FF_OK, init("mplsExp & 10"));
+	EXPECT_NE(FF_OK, init("mplsExp invalid-input"));
 }
+
+
+TEST_F(filter_types_test, ip_performance)
+{
+	srand(O);
+	init("ip 192.168.0.0/24");
+	for (int x = 0; x < 10000000) {
+		rec.addr[3] = rand();
+		ff_eval(filter, rec);
+	}
+
+}
+

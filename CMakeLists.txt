@@ -3,9 +3,10 @@ cmake_minimum_required(VERSION 2.8.8)
 project(nffilter)
 
 set(NF_FILTER_DESCRIPTION, "Lorem ipsum")
-set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} -Wall -fvisibility=hidden -std=gnu11")
+set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} -Wall -std=gnu11")
 set(CMAKE_C_FLAGS_RELEASE   "-O3 -DNDEBUG")
 set(CMAKE_C_FLAGS_DEBUG     "-g -O0 -Wextra -pedantic")
+set(CMAKE_C_FLAGS_PROFILE     "-ggg -O3 -Wextra -pedantic")
 
 set(nf_filter_VERSION_MAJOR 1)
 set(nf_filter_VERSION_MINOR 0)
@@ -27,10 +28,8 @@ find_package(BISON)
 if(NOT BISON_FOUND)
     message(WARNING "Missing Bison.\nTarget bison does not exist.")
 elseif (NOT FLEX_FOUND)
-    message(WARNING "Missing Flex.\nTarget bison does not exist.")
+    message(WARNING "Missing Flex.\nTarget flex does not exist.")
 else()
-
-
     add_custom_command(
             #SOURCE ffilter_lex.l
             OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c
@@ -85,12 +84,10 @@ if (CMAKE_VERSION VERSION_LESS 2.8.11)
     include_directories("${gtest_SOURCE_DIR}/include")
 endif()
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
-
-find_library($NFF_LIB nf_filter)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+#link_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Now simply link against gtest or gtest_main as needed. Eg
-#TODO: tests
 add_executable(str_convertors tests/ipx_filter_convertors.cpp)
 target_link_libraries(str_convertors
         nf_filter
@@ -106,5 +103,4 @@ add_test(NAME data_types_test COMMAND data_types)
 ###Google test
 
 # Make library target
-#add_library(nf_filter SHARED ${SOURCES})
-add_library(nf_filter STATIC ${SOURCES})
+add_library(nf_filter SHARED ${SOURCES})

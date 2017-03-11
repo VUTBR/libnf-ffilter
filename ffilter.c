@@ -748,6 +748,8 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 
 		node->type = lvalue.type;
 		node->field = lvalue.id[0];
+		node->n = lvalue.n;
+		node->opts = (lvalue.options & (FF_OPTS_MPLS_EOS | FF_OPTS_MPLS_EXP | FF_OPTS_MPLS_LABEL));
 		retval = node;
 
 		//TODO: Fix bug when list of values is used on multinode
@@ -763,6 +765,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 			do {
 				elem->type = node->type;
 				elem->field = node->field;
+				elem->vsize = 0;
 				err = ff_type_cast(scanner, filter, tmp = elem->value, elem);
 				if(err == FF_OK) {
 					free(tmp);
@@ -937,7 +940,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 					if(!((ff_mpls_label_t *) buf)[x].eos) {
 						continue;
 					}
-					return res = (*((uint32_t *) node->value) == x);
+					return res = (*((uint32_t *) node->value) == x+1);
 				}
 				return -1;
 			default: //ANY LABEL
@@ -948,6 +951,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 				}
 				return res;
 			}
+			return res;
 
 		default: return -1;
 		}
@@ -965,7 +969,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 		case FF_TYPE_INT8: return *(int8_t *) buf > *(int8_t *) node->value;
 
 		case FF_TYPE_DOUBLE: return *(double *) buf > *(double *) node->value;
-		case FF_TYPE_STRING: return strcmp((char *) buf, node->value) > 0;
+		case FF_TYPE_STRING: return strcmp((char *) buf, node->value) < 0;
 
 		case FF_TYPE_TIMESTAMP_BIG:
 		case FF_TYPE_UNSIGNED_BIG:
@@ -1020,7 +1024,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 					if(!((ff_mpls_label_t *) buf)[x].eos) {
 						continue;
 					}
-					return res = (*((uint32_t *) node->value) > x);
+					return res = (*((uint32_t *) node->value) > x+1);
 				}
 				return -1;
 			default: //ANY LABEL
@@ -1031,6 +1035,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 				}
 				return res;
 			}
+			return res;
 
 		default: return -1;
 		}
@@ -1048,7 +1053,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 		case FF_TYPE_INT8: return *(int8_t *) buf < *(int8_t *) node->value;
 
 		case FF_TYPE_DOUBLE: return *(double *) buf < *(double *) node->value;
-		case FF_TYPE_STRING: return strcmp((char *) buf, node->value) < 0;
+		case FF_TYPE_STRING: return strcmp((char *) buf, node->value) > 0;
 
 		case FF_TYPE_TIMESTAMP_BIG:
 		case FF_TYPE_UNSIGNED_BIG:
@@ -1102,7 +1107,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 					if(!((ff_mpls_label_t *) buf)[x].eos) {
 						continue;
 					}
-					return res = (*((uint32_t *) node->value) < x);
+					return res = (*((uint32_t *) node->value) < x+1);
 				}
 				return -1;
 			default: //ANY LABEL
@@ -1113,6 +1118,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 				}
 				return res;
 			}
+			return res;
 
 		default: return -1;
 		}

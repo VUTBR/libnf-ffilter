@@ -1,6 +1,6 @@
 /*
 
- Copyright (c) 2015, Tomas Podermanski, Lukas Hutak, Imrich Stoffa
+ Copyright (c) 2015-2017, Tomas Podermanski, Lukas Hutak, Imrich Stoffa
 
  This file is part of libnf.net project.
 
@@ -25,6 +25,31 @@
  */
 #ifndef _FLOW_FILTER_H_
 #define _FLOW_FILTER_H_//
+
+#if defined _WIN32 || defined __CYGWIN__
+#ifdef BUILDING_DLL
+    #ifdef __GNUC__
+      #define DLL_PUBLIC __attribute__ ((dllexport))
+    #else
+      #define DLL_PUBLIC __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
+    #endif
+  #else
+    #ifdef __GNUC__
+      #define DLL_PUBLIC __attribute__ ((dllimport))
+    #else
+      #define DLL_PUBLIC __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
+    #endif
+  #endif
+  #define DLL_LOCAL
+#else
+#if __GNUC__ >= 4
+#define DLL_PUBLIC __attribute__ ((visibility ("default")))
+#define DLL_LOCAL  __attribute__ ((visibility ("hidden")))
+#else
+#define DLL_PUBLIC
+    #define DLL_LOCAL
+#endif
+#endif
 
 #include <stdint.h>
 #include <stddef.h>
@@ -143,11 +168,10 @@ typedef enum {
  */
 typedef enum {
 	FF_OPTS_NONE = 0,
-	FF_OPTS_MULTINODE = 0x01,	/**< Lvalue identificates more data filelds */
-	FF_OPTS_FLAGS = 0x02,		/**< Item is of flag type, this change behaviour when no operator is set to bit compare */
-	FF_OPTS_MPLS_LABEL,
-	FF_OPTS_MPLS_EOS,
-	FF_OPTS_MPLS_EXP,
+	FF_OPTS_FLAGS = 0x01,		/**< Item is of flag type, this change behaviour when no operator is set to bit compare */
+	FF_OPTS_MPLS_LABEL = 0x06,
+	FF_OPTS_MPLS_EOS = 0x04,
+	FF_OPTS_MPLS_EXP = 0x02,
 } ff_opts_t;
 
 

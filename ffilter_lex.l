@@ -134,7 +134,8 @@ dst|next|out|egress                 { strncpy(yylval->string, yytext, FF_MAX_STR
 
 any 				{ return ANY; }
 
-({letter}|{digit})+	{
+
+({letter}|{digit})+	{ //TODO: Add possibility for escaped strings for string searches
 					strncpy(yylval->string, yytext, FF_MAX_STRING - 1);
 					return STRING;
 				}
