@@ -81,10 +81,10 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
 		lvalue->id[1].index = FLD_DST_NUMBER64;
 		lvalue->options |= FF_OPTS_MULTINODE;
 
-	} else if (!strcmp(valstr, "src uint")) { type = FF_TYPE_UNSIGNED;
+	} else if (!strcmp(valstr, "srcuint")) { type = FF_TYPE_UNSIGNED;
 		lvalue->id[0].index = FLD_SRC_NUMBER64;
 
-	} else if (!strcmp(valstr, "dst uint")) { type = FF_TYPE_UNSIGNED;
+	} else if (!strcmp(valstr, "dstuint")) { type = FF_TYPE_UNSIGNED;
 		lvalue->id[0].index = FLD_DST_NUMBER64;
 
 	} else if (!strcmp(valstr, "ui64")) { type = FF_TYPE_UINT64;
@@ -111,10 +111,10 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
 		lvalue->id[1].index = FLD_DST_NUMBER64;
 		lvalue->options |= FF_OPTS_MULTINODE;
 
-	} else if (!strcmp(valstr, "src int")) { type = FF_TYPE_SIGNED;
+	} else if (!strcmp(valstr, "srcint")) { type = FF_TYPE_SIGNED;
 		lvalue->id[0].index = FLD_SRC_NUMBER64;
 
-	} else if (!strcmp(valstr, "dst int")) { type = FF_TYPE_SIGNED;
+	} else if (!strcmp(valstr, "dstint")) { type = FF_TYPE_SIGNED;
 		lvalue->id[0].index = FLD_DST_NUMBER64;
 
 	} else if (!strcmp(valstr, "i64")) { type = FF_TYPE_INT64;
@@ -487,6 +487,9 @@ TEST_F(ffilter_interface_test, string_eq)
 	recFillStandard();
 
 	ASSERT_EQ(FF_OK, ff_init(&filter, expr="message = http://youtube.com/index", test_callbacks));
+	ASSERT_TRUE(ff_eval(filter, (void*)&rec));
+
+	ASSERT_EQ(FF_OK, ff_init(&filter, expr="message = \"http://youtube.com/index&^$#$@\"", test_callbacks));
 	ASSERT_TRUE(ff_eval(filter, (void*)&rec));
 }
 
