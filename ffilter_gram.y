@@ -49,15 +49,15 @@
 	void		*node;
 };
 
-%token AND OR NOT ANY EXIST
+%token AND OR NOT
+%token ANY EXIST
 %token EQ LT GT ISSET
-%token LP RP
-%token LPS RPS IN
-%token <string> STRING DIR BIDIR_AND BIDIR_OR DIR_DIR_MAC
-%token BAD_TOKEN
+%token IN
+%token <string> IDENT STRING QOUTED DIR DIR_2 PAIR_AND PAIR_OR
+%token <string> BAD_TOKEN
 
 %type <t_uint> cmp
-%type <string> field value
+%type <string> field value string
 %type <node> expr filter list
 
 %left	OR
@@ -72,16 +72,22 @@ filter:
 	;
 
 field:
-	STRING              { strncpy($$, $1, FF_MAX_STRING - 1); }
-	| DIR STRING        { snprintf($$, FF_MAX_STRING - 1, "%s%s", $1, $2); }
-	| BIDIR_OR STRING   { snprintf($$, FF_MAX_STRING - 1, "%c%s", '|', $2); }
-	| BIDIR_AND STRING  { snprintf($$, FF_MAX_STRING - 1, "%c%s", '&', $2); }
-	| DIR_DIR_MAC STRING { snprintf($$, FF_MAX_STRING - 1, "%s%s", $1, $2); }
+	IDENT               { strncpy($$, $1, FF_MAX_STRING - 1); }
+	| DIR IDENT         { snprintf($$, FF_MAX_STRING - 1, "%s%s", $1, $2); }
+	| DIR_2 IDENT       { snprintf($$, FF_MAX_STRING - 1, "%s%s", $1, $2); }
+	| DIR_2 DIR IDENT   { snprintf($$, FF_MAX_STRING - 1, "%s%s%s", $1,$2,$3); }
+	| PAIR_OR IDENT     { snprintf($$, FF_MAX_STRING - 1, "%c%s", '|', $2); }
+	| PAIR_AND IDENT    { snprintf($$, FF_MAX_STRING - 1, "%c%s", '&', $2); }
 	;
 
+string:
+	IDENT               { strncpy($$, $1, FF_MAX_STRING - 1); /*TRY not to copy, only pass pointer*/ }
+	| STRING            { strncpy($$, $1, FF_MAX_STRING - 1); }
+
 value:
-	STRING              { strncpy($$, $1, FF_MAX_STRING - 1); }
-	| STRING STRING     { snprintf($$, FF_MAX_STRING - 1, "%s %s", $1, $2); }
+	string              { strncpy($$, $1, FF_MAX_STRING - 1); }
+	| string string     { snprintf($$, FF_MAX_STRING - 1, "%s %s", $1, $2); }
+	| QUOTED            { $$[strlen($$)-1] = 0; snprintf($$, FF_MAX_STRING - 1, "%s", &$$.string[1]); /*Dequote*/}
 	;
 
 expr:
@@ -90,32 +96,16 @@ expr:
 	| expr AND expr     { $$ = ff_new_node(scanner, filter, $1, FF_OP_AND, $3); if ($$ == NULL) { YYABORT; }; }
 	| expr OR expr      { $$ = ff_new_node(scanner, filter, $1, FF_OP_OR, $3); if ($$ == NULL) { YYABORT; }; }
 	| LP expr RP        { $$ = $2; }
-	| field             { struct { char* name; char* field; char* cnst; } const_info[] =
-                        	{
-                            	{"inet", "inet", "4"},
-                        		{"inet6", "inet", "6"},
-                        		{"ipv4", "inet", "4"},
-                        		{"ipv6", "inet", "6"},
-                        		{NULL,NULL,NULL}
-                        	};
-                        	int x;
-                        	for(x = 0; const_info[x].name; x++){
-                        		if (!strcmp($1, const_info[x].name)){
-                        			$$ = ff_new_leaf(scanner, filter, const_info[x].field, FF_OP_EQ, const_info[x].cnst); if ($$ == NULL) { YYABORT; }
-                        			break;
-                       		}
-                        	}
-                        	if (!const_info[x].name) { YYABORT; };
-                        }
 	| EXIST field       { $$ = ff_new_leaf(scanner, filter, $2, FF_OP_EXIST, ""); if ($$ == NULL) { YYABORT; } }
 	| field cmp value   { $$ = ff_new_leaf(scanner, filter, $1, $2, $3); if ($$ == NULL) { YYABORT; } }
 	| field IN list     { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_IN, $3); if ($$ == NULL) { YYABORT; } }
+	| IDENT             { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_NOOP, ""); if ($$ == NULL) { YYABORT; } }
 	;
 
 list:
-	STRING list         { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $2); if ($$ == NULL) { YYABORT; } }
-//	| STRING list   { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $3); if ($$ == NULL) { YYABORT; } }
-	| STRING RPS        { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
+	list string         { $$ = ff_new_mval(scanner, filter, $2, FF_OP_EQ, $1); if ($$ == NULL) { YYABORT; } }
+	list ',' string     { $$ = ff_new_mval(scanner, filter, $3, FF_OP_EQ, $1); if ($$ == NULL) { YYABORT; } }
+	| STRING ']'        { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
 	;
 
 cmp:

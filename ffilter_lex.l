@@ -27,7 +27,11 @@
 %option noinput
 
 digit 	[0-9]
-letter	[A-Za-z:/\.\-]
+letter	[A-Za-z]
+punct   [:/\.\-]
+
+
+ident [A-Za-z][A-Za-z0-9\-]*
 
 ws	[ \t]
 
@@ -53,92 +57,29 @@ exist           { return EXIST; }
 "="|"=="|eq		{ return EQ; }
 ">"|gt			{ return GT; }
 "<"|lt			{ return LT; }
-"&"			{ return ISSET; }
-"("			{ return LP; }
-")"			{ return RP; }
-"["			{ return LPS; }
-"]"			{ return RPS; }
+"&"			    { return ISSET; }
 
-"next"{ws}+"ip"	{
-			// Grammar exceptions nfdump compat, maybe enable one space separated identifiers ?
-					strncpy(yylval->string, "nextip", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"bgpnext"{ws}+"ip"	{
-					strncpy(yylval->string, "bgpnextip", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"router"{ws}+"ip"	{
-					strncpy(yylval->string, "routerip", FF_MAX_STRING - 1);
-					return STRING;
-				}
+"("|")"|"["|"]"|"," { return yytext[0]; }
 
-"mpls"{ws}+"label"	{
-					strncpy(yylval->string, "mplslabel", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label1"	{
-					strncpy(yylval->string, "mplslabel1", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label2"	{
-					strncpy(yylval->string, "mplslabel2", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label3"	{
-					strncpy(yylval->string, "mplslabel3", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label4"	{
-					strncpy(yylval->string, "mplslabel4", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label5"	{
-					strncpy(yylval->string, "mplslabel5", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label6"	{
-					strncpy(yylval->string, "mplslabel6", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label7"	{
-					strncpy(yylval->string, "mplslabel7", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label8"	{
-					strncpy(yylval->string, "mplslabel8", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label9"	{
-					strncpy(yylval->string, "mplslabel9", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"label10"	{
-					strncpy(yylval->string, "mplslabel10", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"eos"	{
-					strncpy(yylval->string, "mplseos", FF_MAX_STRING - 1);
-					return STRING;
-				}
-"mpls"{ws}+"exp"    {
-					strncpy(yylval->string, "mplsexp", FF_MAX_STRING - 1);
-					return STRING;
-				}
-
-"src and dst"|"dst and src"         { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return BIDIR_AND; }
-"src or dst"|"dst or src"           { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return BIDIR_OR; }
-"in src"|"in dst"|"out src"|"out dst"  { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return DIR_DIR_MAC; }
-src|prev|in|ingress                 { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return DIR; }
-dst|next|out|egress                 { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return DIR; }
+src{ws}+and{ws}+dst|dst{ws}+and{ws}+src { strncpy(yylval->string, "&", FF_MAX_STRING - 1); return PAIR_AND; }
+src{ws}+or{ws}+dst|dst{ws}+or{ws}+src   { strncpy(yylval->string, "|", FF_MAX_STRING - 1); return PAIR_OR; }
+in|out                              { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return DIR_2; }
+src|prev|ingress                    { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return DIR; }
+dst|next|egress                     { strncpy(yylval->string, yytext, FF_MAX_STRING - 1); return DIR; }
 
 any 				{ return ANY; }
 
-
-({letter}|{digit})+	{ //TODO: Add possibility for escaped strings for string searches
+{ident}|\"{ident}([ ]{ident})+\"    { //Identifier or multi word identifier in double quotes
 					strncpy(yylval->string, yytext, FF_MAX_STRING - 1);
-					return STRING;
-				}
+					return IDENT; }
+
+({letter}|{digit}|{punct})+ {
+                    strncpy(yylval->string, yytext, FF_MAX_STRING - 1);
+					return STRING; }
+
+\"[^"]*\"   {
+                    strncpy(yylval->string, yytext, FF_MAX_STRING - 1);
+					return QUOTED; }
 
 #.*         { ; }	//comments
 {ws}+       { ; }	//whitespace
