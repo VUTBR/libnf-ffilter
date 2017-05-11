@@ -85,7 +85,7 @@ any 				{ return ANY; }
 {ws}+       { ; }	//whitespace
 [\n]        { ; }	//end of line
 
-.			{ /*fprintf(stderr, "%s: %s\n", "invalid character", yytext);*/ return BAD_TOKEN; }
+.			{ /*fprintf(stderr, "%s: %s\n", "invalid character", yytext); return BAD_TOKEN*/; }
 
 %%
 

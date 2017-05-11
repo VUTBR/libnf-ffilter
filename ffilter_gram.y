@@ -53,12 +53,13 @@
 %token ANY EXIST
 %token EQ LT GT ISSET
 %token IN
-%token <string> IDENT STRING QOUTED DIR DIR_2 PAIR_AND PAIR_OR
+%token <string> IDENT STRING QUOTED DIR DIR_2 PAIR_AND PAIR_OR
 %token <string> BAD_TOKEN
 
 %type <t_uint> cmp
 %type <string> field value string
-%type <node> expr filter list
+%type <node> expr filter
+%type <node> list
 
 %left	OR
 %left	AND
@@ -87,7 +88,7 @@ string:
 value:
 	string              { strncpy($$, $1, FF_MAX_STRING - 1); }
 	| string string     { snprintf($$, FF_MAX_STRING - 1, "%s %s", $1, $2); }
-	| QUOTED            { $$[strlen($$)-1] = 0; snprintf($$, FF_MAX_STRING - 1, "%s", &$$.string[1]); /*Dequote*/}
+	| QUOTED            { $$[strlen($$)-1] = 0; snprintf($$, FF_MAX_STRING - 1, "%s", &$1[1]); /*Dequote*/}
 	;
 
 expr:
@@ -95,7 +96,7 @@ expr:
 	| NOT expr          { $$ = ff_new_node(scanner, filter, NULL, FF_OP_NOT, $2); if ($$ == NULL) { YYABORT; }; }
 	| expr AND expr     { $$ = ff_new_node(scanner, filter, $1, FF_OP_AND, $3); if ($$ == NULL) { YYABORT; }; }
 	| expr OR expr      { $$ = ff_new_node(scanner, filter, $1, FF_OP_OR, $3); if ($$ == NULL) { YYABORT; }; }
-	| LP expr RP        { $$ = $2; }
+	| '(' expr ')'      { $$ = $2; }
 	| EXIST field       { $$ = ff_new_leaf(scanner, filter, $2, FF_OP_EXIST, ""); if ($$ == NULL) { YYABORT; } }
 	| field cmp value   { $$ = ff_new_leaf(scanner, filter, $1, $2, $3); if ($$ == NULL) { YYABORT; } }
 	| field IN list     { $$ = ff_new_leaf(scanner, filter, $1, FF_OP_IN, $3); if ($$ == NULL) { YYABORT; } }
@@ -103,9 +104,9 @@ expr:
 	;
 
 list:
-	list string         { $$ = ff_new_mval(scanner, filter, $2, FF_OP_EQ, $1); if ($$ == NULL) { YYABORT; } }
-	list ',' string     { $$ = ff_new_mval(scanner, filter, $3, FF_OP_EQ, $1); if ($$ == NULL) { YYABORT; } }
-	| STRING ']'        { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
+	string ',' list { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $3); if ($$ == NULL) { YYABORT; } }
+	| string list    { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $2); if ($$ == NULL) { YYABORT; } }      
+	| string ']'    { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
 	;
 
 cmp:
