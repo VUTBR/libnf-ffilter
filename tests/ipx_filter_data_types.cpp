@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <time.h>
 
 extern "C" {
 #include <ffilter.h>
@@ -840,12 +841,24 @@ TEST_F(filter_types_test, mpls_Exp)
 
 TEST_F(filter_types_test, ip_performance)
 {
-	srand(O);
-	init("ip 192.168.0.0/24");
-	for (int x = 0; x < 10000000) {
-		rec.addr[3] = rand();
-		ff_eval(filter, rec);
+	srand(time(0));
+	struct mock_rec * rec_list = (struct mock_rec*)malloc(4096*sizeof(struct mock_rec));
+
+	init("addr 192.168.2.64");
+	fillIP("192.168.2.64");
+	rec_list[0].addr[3] = rec.addr[3];
+	for (int x = 1; x < 4096; x++) {
+		rec_list[x].addr[3] = rand();
 	}
+
+	clock_t t;
+	t = clock();
+	int32_t sum = 0;
+	for (int64_t x = 0; x < 10000000LL; x++) {
+		sum += ff_eval(filter, &rec_list[x & 0x0fff]);
+	}
+	t = clock() - t;
+	printf("Evaluation took %lf seconds\nPerformance: %.0lf ip per second\nMatches: %d\n", ((double)t/CLOCKS_PER_SEC), 1/(((double)t)/(CLOCKS_PER_SEC))*10000000, sum);
 
 }
 

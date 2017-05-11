@@ -6,7 +6,9 @@ set(NF_FILTER_DESCRIPTION, "Lorem ipsum")
 set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} -Wall -std=gnu11")
 set(CMAKE_C_FLAGS_RELEASE   "-O3 -DNDEBUG")
 set(CMAKE_C_FLAGS_DEBUG     "-g -O0 -Wextra -pedantic")
-set(CMAKE_C_FLAGS_PROFILE     "-ggg -O3 -Wextra -pedantic")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -O3 -Wextra -pedantic")
+
+set(ENABLE_TESTING ON)
 
 set(nf_filter_VERSION_MAJOR 1)
 set(nf_filter_VERSION_MINOR 0)
@@ -94,12 +96,13 @@ target_link_libraries(str_convertors
         gtest_main)
 add_test(NAME str_convertors_test COMMAND str_convertors)
 
+add_test(NAME data_types_prof_test COMMAND valgrind --tool=callgrind data_types)
+
 add_executable(data_types tests/ipx_filter_data_types.cpp)
 target_link_libraries(data_types
         nf_filter
         gtest_main)
 add_test(NAME data_types_test COMMAND data_types)
-
 ###Google test
 
 # Make library target

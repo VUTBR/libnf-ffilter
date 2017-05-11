@@ -87,6 +87,7 @@ typedef union {
 typedef enum {
 	FF_TYPE_UNSUPPORTED = 0x0,	// for unsupported data types
 
+	//TODO:
 	FF_TYPE_UNSIGNED,
 	FF_TYPE_UNSIGNED_BIG,
 	FF_TYPE_SIGNED,
@@ -208,18 +209,24 @@ typedef struct ff_lvalue_s {
 	int options;
 	/** 0 for not set */
 	int n;
+	const char * literal;
 } ff_lvalue_t;
 
 /* node of syntax tree */
 typedef struct ff_node_s {
 	ff_extern_id_t field;         /* field ID */
+	//TODO: in future use only pointers - do not copy data from wrapper
 	char *value;                  /* buffer allocated for data */
 	size_t vsize;                 /* size of data in value */
+	//TODO: could be ommited in future if pointer to function to evaluate is used instead
 	int type;                     /* data type for value */
 	ff_oper_t oper;               /* operation */
+	//TODO: get rid of it mpls can have multiple operators, transcoding can be done via lvalue
 	int opts;                     /* mpls stack data selector label, exp or eos */
+	//TODO: can be transfered to value into some mpls structure
 	int n;                        /* extra identification for mpls<n> variant */
 
+	//TODO: transform to heap data structure - no pointers
 	struct ff_node_s *left;
 	struct ff_node_s *right;
 

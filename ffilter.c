@@ -46,10 +46,6 @@ int64_t get_unit(char *unit)
 	case 'g':
 	case 'G':
 		return FF_SCALING_FACTOR * FF_SCALING_FACTOR * FF_SCALING_FACTOR;
-	case 'T':
-		return FF_SCALING_FACTOR * FF_SCALING_FACTOR * FF_SCALING_FACTOR * FF_SCALING_FACTOR;
-	case 'P':
-		return FF_SCALING_FACTOR * FF_SCALING_FACTOR * FF_SCALING_FACTOR * FF_SCALING_FACTOR * FF_SCALING_FACTOR;
 	default:
 		return 0;
 	}
@@ -761,7 +757,6 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 			node->right = elem;
 			retval = node;
 
-			//TODO: Fix double free bug if conversion fails on one of elements in list
 			do {
 				elem->type = node->type;
 				elem->field = node->field;
@@ -781,6 +776,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 		} else if (ff_type_cast(scanner, filter, valstr, node) != FF_OK) {
 
 			if (oper == FF_OP_EXIST) {
+			} else if (ff_type_cast(scanner, filter, lvalue.literal, node) != FF_OK) {
 			} else {
 				retval = NULL;
 				ff_free_node(node);
@@ -832,6 +828,7 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
 //TODO Refactor this to better readable form. Maybe inlined functions to eval each type and convert _BIG variant to flag
 //TODO: Add, check possible conflicts in node and data types
 //Big suffix refers to what endiannes expect from data function, note that comparation uses native format of architecture
+//TODO: endiannes should be treated in wrapper
 int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 {
 	int res = 0;
@@ -1011,7 +1008,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 			default: return -1;
 			}
 		case FF_TYPE_MPLS:
-			//TODO: Problem here...
+			//TODO: Problem here... hm that was so specific
 			switch(node->opts) {
 			case FF_OPTS_MPLS_LABEL:
 				res = *((uint32_t *) node->value) > ((ff_mpls_label_t *) buf)[node->n-1].label;
@@ -1261,7 +1258,7 @@ int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec) {
 	switch (node->oper) {
 	default: return ff_oper_eval(buf, size, node);
 	case FF_OP_EXIST: return exist;		//Check for presence of item
-		// Compare against list (right branch is NULL) */
+		// Compare against list (right branch is NULL) data retireved once */
 	case FF_OP_IN:
 		node = node->right;
 		do {
@@ -1386,6 +1383,6 @@ ff_error_t ff_free(ff_t *filter) {
 
 //TODO: pass by reference
 //TODO: internal typedefs
-//TODO: tests/
+//TODO: tests
 //TODO: profiling
 
