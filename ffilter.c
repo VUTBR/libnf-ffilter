@@ -24,8 +24,10 @@
 #include "ffilter_internal.h"
 #include "ffilter_gram.h"
 #include "ffilter.h"
+#include "fcore.h"
 
 #define ff_reint_cast(type, ptr) (*(((type)*)(ptr)))
+
 
 /**
  * \brief Convert unit character to positive power of 10
@@ -486,7 +488,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 	case FF_TYPE_UINT32:
 	case FF_TYPE_UINT16:
 	case FF_TYPE_UINT8:
-		if (str_to_uint(filter, valstr, node->type, &node->value, &node->vsize)) {
+		if (str_to_uint(filter, valstr, FF_TYPE_UINT64, &node->value, &node->vsize)) {
 			ff_set_error(filter, "Can't convert '%s' into numeric value", valstr);
 			return FF_ERR_OTHER_MSG;
 		}
@@ -495,7 +497,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 	case FF_TYPE_INT32:
 	case FF_TYPE_INT16:
 	case FF_TYPE_INT8:
-		if (str_to_int(filter, valstr, node->type, &node->value, &node->vsize)) {
+		if (str_to_int(filter, valstr, FF_TYPE_INT64, &node->value, &node->vsize)) {
 			ff_set_error(filter, "Can't convert '%s' into numeric value", valstr);
 			return FF_ERR_OTHER_MSG;
 		}
@@ -776,7 +778,10 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 		} else if (ff_type_cast(scanner, filter, valstr, node) != FF_OK) {
 
 			if (oper == FF_OP_EXIST) {
-			} else if (ff_type_cast(scanner, filter, lvalue.literal, node) != FF_OK) {
+				;//OP exist does not need value
+			} else if (valstr[0]==0 && lvalue.literal &&
+					   (ff_type_cast(scanner, filter, lvalue.literal, node) == FF_OK)) {
+				;//Also pass if for constant there is a default value
 			} else {
 				retval = NULL;
 				ff_free_node(node);
@@ -829,6 +834,7 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
 //TODO: Add, check possible conflicts in node and data types
 //Big suffix refers to what endiannes expect from data function, note that comparation uses native format of architecture
 //TODO: endiannes should be treated in wrapper
+
 int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 {
 	int res = 0;

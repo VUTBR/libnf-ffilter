@@ -6,7 +6,7 @@ set(NF_FILTER_DESCRIPTION, "Lorem ipsum")
 set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} -Wall -std=gnu11")
 set(CMAKE_C_FLAGS_RELEASE   "-O3 -DNDEBUG")
 set(CMAKE_C_FLAGS_DEBUG     "-g -O0 -Wextra -pedantic")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -O3 -Wextra -pedantic")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -O1 -Wextra -pedantic")
 
 set(ENABLE_TESTING ON)
 

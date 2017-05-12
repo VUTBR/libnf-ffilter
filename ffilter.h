@@ -72,6 +72,8 @@
 typedef struct ff_ip_s { uint32_t data[4]; } ff_ip_t; /*!< IPv4/IPv6 address */
 typedef struct ff_net_s { ff_ip_t ip; ff_ip_t mask; int ver; } ff_net_t;
 
+typedef struct ff_mpls_s { uint32_t val; uint32_t label; } ff_mpls_t; /*!< In node type for mpls */
+
 typedef union {
 	//TODO: Test on big-endian machine
 	struct {
@@ -87,7 +89,6 @@ typedef union {
 typedef enum {
 	FF_TYPE_UNSUPPORTED = 0x0,	// for unsupported data types
 
-	//TODO:
 	FF_TYPE_UNSIGNED,
 	FF_TYPE_UNSIGNED_BIG,
 	FF_TYPE_SIGNED,
@@ -110,26 +111,6 @@ typedef enum {
 	FF_TYPE_TIMESTAMP_BIG,  /* uint64_t bit timestamp eval as unsigned, to host byte order conversion required */
 } ff_type_t;
 
-#define FF_TYPE_UNSUPPORTED_T void
-#define FF_TYPE_UNSIGNED_T char*
-#define FF_TYPE_UNSIGNED_BIG_T char*
-#define FF_TYPE_SIGNED_T char*
-#define FF_TYPE_SIGNED_BIG_T char*
-#define FF_TYPE_UINT8_T uint8_t
-#define FF_TYPE_UINT16_T uint8_t
-#define FF_TYPE_UINT32_T uint32_t
-#define FF_TYPE_UINT64_T uint64_t
-#define FF_TYPE_INT8_T int8_t
-#define FF_TYPE_INT16_T int16_t
-#define FF_TYPE_INT32_T int32_t
-#define FF_TYPE_INT64_T int64_t
-#define FF_TYPE_DOUBLE_T double
-#define FF_TYPE_FLOAT_T double
-#define FF_TYPE_ADDR_T ff_ip_t
-#define FF_TYPE_MAC_T char[8]
-#define FF_TYPE_STRING_T char*
-#define FF_TYPE_MPLS_T uint32_t[10]
-#define FF_TYPE_TIMESTAMP_T unit64_t
 
 //Some of the types here are useless - why define another fixed size types ?
 typedef void ff_unsup_t;
@@ -144,7 +125,6 @@ typedef int16_t ff_int16_t;
 typedef int32_t ff_int32_t;
 typedef int64_t ff_int64_t;
 typedef double ff_double_t;
-//typedef double ff_float_t;
 typedef ff_ip_t ff_addr_t;
 typedef char ff_mac_t[8];
 typedef char* ff_string_t;
@@ -182,13 +162,14 @@ typedef enum {
 	FF_OP_NOT = 1,
 	FF_OP_OR,
 	FF_OP_AND,
+	FF_OP_IN,
+	FF_OP_YES,
+
 	FF_OP_NOOP,
 	FF_OP_EQ,
 	FF_OP_LT,
 	FF_OP_GT,
 	FF_OP_ISSET,
-	FF_OP_IN,
-	FF_OP_YES,
 	FF_OP_EXIST
 } ff_oper_t;
 
