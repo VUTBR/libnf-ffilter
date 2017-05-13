@@ -123,7 +123,8 @@ typedef enum ff_attr_e{
 	FFAT_IS_MEX,
 	FFAT_IS_MES,
 
-	FFAT_EXIST
+	FFAT_EXIST,
+	FFAT_IN
 
 } ff_attr_t;
 
@@ -138,10 +139,14 @@ typedef union ff_core_u {
 	int8_t i1;
 	double real;
 	ff_mpls_t mpls;
+
 	char* str;
+	ff_mpls_label_t* label;
 	ff_net_t* net;
 	ff_ip_t* ip;
 } tcore;
+
+void ff_space_dynamic(ff_node_t* node);
 
 ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* info);
 

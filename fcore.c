@@ -4,6 +4,65 @@
 
 #include "fcore.h"
 #include "ffilter.h"
+#include <arpa/inet.h>
+#include <string.h>
+#include <stdlib.h>
+
+/**
+ * \brief Optimize memory utilization in node
+ * Data with max size >= 8B are saved directly to node,
+ * vsize is set to 0 (to prevent invalid free)
+ * Rest is accessible via pointer
+ * \param node to optimize
+ */
+void ff_space_dynamic(ff_node_t* node)
+{
+	char* tmp = NULL;
+	switch (node->type) {
+
+	case FF_TYPE_TIMESTAMP_BIG:
+	case FF_TYPE_TIMESTAMP:
+	case FF_TYPE_UNSIGNED_BIG:
+	case FF_TYPE_UNSIGNED:
+	case FF_TYPE_SIGNED_BIG:
+	case FF_TYPE_SIGNED:
+	case FF_TYPE_UINT64:
+	case FF_TYPE_UINT32:
+	case FF_TYPE_UINT16:
+	case FF_TYPE_UINT8:
+	case FF_TYPE_INT64:
+	case FF_TYPE_INT32:
+	case FF_TYPE_INT16:
+	case FF_TYPE_INT8:
+		tmp = node->value;
+		memcpy(&node->value, tmp, sizeof(uint64_t));
+		node->vsize = 0; //not allocated;
+		free(tmp);
+		break;
+
+	case FF_TYPE_DOUBLE:
+		tmp = node->value;
+		memcpy(&node->value, tmp, sizeof(double));
+		node->vsize = 0; //not allocated;
+		free(tmp);
+		break;
+
+	case FF_TYPE_MPLS:
+		tmp = node->value;
+		memcpy(&node->value, tmp, sizeof(uint32_t));
+		memset(&node->value+4, 0, sizeof(uint32_t));
+		node->vsize = 0; //not allocated;
+		free(tmp);
+		break;
+
+	case FF_TYPE_MAC:
+		tmp = node->value;
+		memcpy(&node->value, tmp, sizeof(ff_mac_t));
+		node->vsize = 0; //not allocated;
+		free(tmp);
+		break;
+	}
+}
 
 ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* info)
 {
@@ -66,7 +125,6 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 		case FF_TYPE_UINT32: return FFAT_GT_UI4;
 		case FF_TYPE_UINT16: return FFAT_GT_UI2;
 		case FF_TYPE_UINT8: return FFAT_GT_UI1;
-
 		case FF_TYPE_TIMESTAMP:
 		case FF_TYPE_UNSIGNED: return FFAT_GT_UI;
 
@@ -120,6 +178,8 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 
 		case FF_TYPE_STRING: return FFAT_IS_STR;
 		}
+	} else if (op == FF_OP_IN) {
+		return FFAT_IN;
 	}
 
 	//Set some kind of error
@@ -137,18 +197,18 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
  */
 int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 {
-	fcore* fl;
-	fcore* rc;
-	fcore  hord; //Host byte order converted value
+	const tcore* fl = (tcore*)(&node->value); //filter node data
+	tcore* rc = (tcore*)buf; //record data
+	tcore hord; //Host byte order converted value
 	ff_ip_t ip_buf;
 
-	fl = (fcore*)&(node->value); //filter
-	rc = (fcore*)(buf);          //record data
+	rc = (tcore*)(buf);
 
-	char res = 0;
-	char x = 0;
+	int res = 0;
+	int x = 0;
 
 	//Handle variable length types, big endians and so on, pre-copy data
+	//Pre-process switch
 	switch (node->type) {
 
 	case FFAT_EQ_UIBE:
@@ -205,7 +265,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		if (size == 4) { //realign
 			memset(&ip_buf, 0, sizeof(ff_ip_t));
 			hord.ip = &ip_buf;
-			hord.ip->data[3] = rc->ip.data[0];
+			hord.ip->data[3] = rc->ip->data[0];
 			rc = &hord;
 		} else if (size != sizeof(ff_ip_t)) {
 			return -1;
@@ -214,6 +274,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	default: ;
 	}
 
+	//Eval switch
 	switch (node->type) {
 
 	case FFAT_EQ_UIBE:
@@ -252,13 +313,13 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_IS_UIBE:
 	case FFAT_IS_UI:
 	case FFAT_IS_UI8:
-		return rc->ui & fl->ui == fl->ui;
+		return (rc->ui & fl->ui) == fl->ui;
 	case FFAT_IS_UI4:
-		return rc->ui4 & fl->ui == fl->ui;
+		return (rc->ui4 & fl->ui) == fl->ui;
 	case FFAT_IS_UI2:
-		return rc->ui2 & fl->ui == fl->ui;
+		return (rc->ui2 & fl->ui) == fl->ui;
 	case FFAT_IS_UI1:
-		return rc->ui1 & fl->ui == fl->ui;
+		return (rc->ui1 & fl->ui) == fl->ui;
 
 
 	case FFAT_EQ_IBE:
@@ -297,13 +358,13 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_IS_IBE:
 	case FFAT_IS_I:
 	case FFAT_IS_I8:
-		return rc->i & fl->i == fl->i;
+		return (rc->i & fl->i) == fl->i;
 	case FFAT_IS_I4:
-		return rc->i4 & fl->i == fl->i;
+		return (rc->i4 & fl->i) == fl->i;
 	case FFAT_IS_I2:
-		return rc->i2 & fl->i == fl->i;
+		return (rc->i2 & fl->i) == fl->i;
 	case FFAT_IS_I1:
-		return rc->i1 & fl->i == fl->i;
+		return (rc->i1 & fl->i) == fl->i;
 
 
 	case FFAT_EQ_RE:
@@ -328,14 +389,14 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_EQ_ADP:   //Prefix eval
 		res = 1;
 		for (x = 0; x < 4; x++)
-			res &= rc->ip.data[x] &
-			       (fl->net.mask.data[x] == fl->net.ip.data[x]);
+			res &= (rc->ip->data[x] & fl->net->mask.data[x])
+			       == fl->net->ip.data[x];
 		return res;
 
 	case FFAT_EQ_ML:
 		res = 0;
 		for (x=0; x < 10; x++) {
-			res = fl->ui4 == ((ff_mpls_label_t*)buf)[x].label;
+			res = fl->ui4 == fl->label[x].label;
 			if (res) break;
 		}
 		return res;
@@ -343,7 +404,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_GT_ML:
 		res = 0;
 		for (x=0; x < 10; x++) {
-			res = fl->ui4 < ((ff_mpls_label_t*)buf)[x].label;
+			res = fl->ui4 < fl->label[x].label;
 			if (res) break;
 		}
 		return res;
@@ -351,47 +412,47 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_LT_ML:
 		res = 0;
 		for (x=0; x < 10; x++) {
-			res = fl->ui4 > ((ff_mpls_label_t*)buf)[x].label;
+			res = fl->ui4 > fl->label[x].label;
 			if (res) break;
 		}
 		return res;
 
 	case FFAT_EQ_MLX:
-		return fl->mpls.val == ((ff_mpls_label_t*)buf)[fl->mpls.label-1].label;
+		return fl->mpls.val == fl->label[fl->mpls.label-1].label;
 	case FFAT_GT_MLX:
-		return fl->mpls.val < ((ff_mpls_label_t*)buf)[fl->mpls.label-1].label;
+		return fl->mpls.val < fl->label[fl->mpls.label-1].label;
 	case FFAT_LT_MLX:
-		return fl->mpls.val > ((ff_mpls_label_t*)buf)[fl->mpls.label-1].label;
+		return fl->mpls.val > fl->label[fl->mpls.label-1].label;
 
 	case FFAT_EQ_MEX:
-		return fl->mpls.val == ((ff_mpls_label_t*)buf)[fl->mpls.label-1].exp;
+		return fl->mpls.val == fl->label[fl->mpls.label-1].exp;
 	case FFAT_GT_MEX:
-		return fl->mpls.val < ((ff_mpls_label_t*)buf)[fl->mpls.label-1].exp;
+		return fl->mpls.val < fl->label[fl->mpls.label-1].exp;
 	case FFAT_LT_MEX:
-		return fl->mpls.val > ((ff_mpls_label_t*)buf)[fl->mpls.label-1].exp;
+		return fl->mpls.val > fl->label[fl->mpls.label-1].exp;
 	case FFAT_IS_MEX:
-		return fl->mpls.val == (fl->mpls.val & ((ff_mpls_label_t*)buf)[fl->mpls.label-1].exp;
+		return fl->mpls.val == (fl->mpls.val & fl->label[fl->mpls.label-1].exp);
 
 	case FFAT_EQ_MES:
 		for (x = 0; x < 10; x++)
-			if (!((ff_mpls_label_t *) buf)[x].eos) {
+			if (!fl->label[x].eos) {
 				continue;
 			}
-		return fl->mpls.val == x+1);
+		return (fl->mpls.val == x+1);
 
 	case FFAT_GT_MES:
 		for (x = 0; x < 10; x++)
-			if (!((ff_mpls_label_t *) buf)[x].eos) {
+			if (!fl->label[x].eos) {
 				continue;
 			}
-		return fl->mpls.val < x+1);
+		return (fl->mpls.val < x+1);
 
 	case FFAT_LT_MES:
 		for (x = 0; x < 10; x++)
-			if (!((ff_mpls_label_t *) buf)[x].eos) {
+			if (!fl->label[x].eos) {
 				continue;
 			}
-		return fl->mpls.val > x+1);
+		return (fl->mpls.val > x+1);
 
 	return -1;
 	}

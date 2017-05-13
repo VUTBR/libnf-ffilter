@@ -422,6 +422,7 @@ int str_to_mac(ff_t *filter, char *str, char **res, size_t *size)
 	int ret = 1;
 	uint32_t num = 0;
 	for (int x = 0; x < 6; x++) {
+
 		num = strtoul(endptr, &endptr, 16);
 		if (num > 255) {
 			break;
@@ -483,6 +484,7 @@ int str_to_timestamp(ff_t *filter, char* str, char** res, size_t *size)
 ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t* node) {
 
 		// determine field type and assign data to lvalue */
+	char* tmp;
 	switch (node->type) {
 	case FF_TYPE_UINT64:
 	case FF_TYPE_UINT32:
@@ -493,6 +495,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 			return FF_ERR_OTHER_MSG;
 		}
 		break;
+
 	case FF_TYPE_INT64:
 	case FF_TYPE_INT32:
 	case FF_TYPE_INT16:
@@ -501,6 +504,19 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 			ff_set_error(filter, "Can't convert '%s' into numeric value", valstr);
 			return FF_ERR_OTHER_MSG;
 		}
+		break;
+
+	case FF_TYPE_MPLS:
+		if (str_to_uint(filter, valstr, FF_TYPE_UINT32, &node->value, &node->vsize)) {
+			ff_set_error(filter, "Can't convert '%s' into numeric value", valstr);
+			return FF_ERR_OTHER_MSG;
+		}
+		tmp = calloc(1, sizeof(ff_mpls_t));
+		if (!tmp) return FF_ERR_NOMEM;
+		memcpy(tmp, node->value, sizeof(uint32_t));
+		free(node->value);
+		node->value = tmp;
+		node->vsize = sizeof(ff_mpls_t);
 		break;
 
 	case FF_TYPE_DOUBLE:
@@ -520,7 +536,6 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 		// unsigned with undefined data size (internally mapped to uint64_t in network order) */
 	case FF_TYPE_UNSIGNED_BIG:
 	case FF_TYPE_UNSIGNED:
-	case FF_TYPE_MPLS:
 		if (str_to_uint64(filter, valstr, &node->value, &node->vsize)) {
 			node->value = calloc(1, sizeof(uint64_t));
 			if (!node->value) return FF_ERR_NOMEM;
@@ -538,6 +553,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 			}
 		}
 		break;
+
 	case FF_TYPE_SIGNED_BIG:
 	case FF_TYPE_SIGNED:
 		if (str_to_int64(filter, valstr, &node->value, &node->vsize)) {
@@ -557,6 +573,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 			}
 		}
 		break;
+
 	case FF_TYPE_STRING:
 		if ((node->value = strdup(valstr)) == NULL) {
 			ff_set_error(filter, "Failed to duplicate string");
@@ -564,6 +581,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 		}
 		node->vsize = strlen(valstr);
 		break;
+
 	case FF_TYPE_MAC:
 		if (str_to_mac(filter, valstr, &node->value, &node->vsize)) {
 			ff_set_error(filter, "Can't convert '%s' into mac address", valstr);
@@ -578,10 +596,13 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 			return FF_ERR_OTHER_MSG;
 		}
 		break;
+
 	default:
 		ff_set_error(filter, "Can't convert '%s' type is unsupported", valstr);
 		return FF_ERR_OTHER_MSG;
 	}
+
+	ff_space_dynamic(node); //Optimize saving of values in nodes
 	return FF_OK;
 }
 
@@ -673,17 +694,21 @@ ff_node_t* ff_duplicate_node(ff_node_t* original) {
 
 	memcpy(copy, original, sizeof(ff_node_t));
 
-	copy->value = malloc(original->vsize);
-	copy->vsize = original->vsize;
+	if (original->vsize) {
+		copy->value = malloc(original->vsize);
+		copy->vsize = original->vsize;
+
+		if(copy->value) {
+			memcpy(copy->value, original->value, original->vsize);
+		} else {
+			ff_free_node(copy);
+			return NULL;
+		}
+	}
 	copy->left = lc;
 	copy->right = rc;
 
-	if(copy->value) {
-		memcpy(copy->value, original->value, original->vsize);
-		return copy;
-	}
-	ff_free_node(copy);
-	return NULL;
+	return copy;
 }
 
 /* Add leaf entry into expr tree */
@@ -746,11 +771,20 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 
 		node->type = lvalue.type;
 		node->field = lvalue.id[0];
-		node->n = lvalue.n;
 		node->opts = (lvalue.options & (FF_OPTS_MPLS_EOS | FF_OPTS_MPLS_EXP | FF_OPTS_MPLS_LABEL));
+
+		if (node->type == FF_TYPE_MPLS) ((ff_mpls_t*) &node->value)->label = lvalue.n;
+
+		ff_attr_t valid;
+		if ((valid = ff_validate(node->type, node->oper, node->value, &lvalue)) == FFAT_ERR) {
+			ff_free_node(node);
+			ff_set_error(filter, "Semantic error: Bad type operator. Operator %s is not valid for type %s", "lick","me");
+			retval = NULL;
+			break;
+		}
+
 		retval = node;
 
-		//TODO: Fix bug when list of values is used on multinode
 		if (oper == FF_OP_IN) {
 			void* tmp;
 			int err = FF_OK;
@@ -765,7 +799,8 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 				elem->vsize = 0;
 				err = ff_type_cast(scanner, filter, tmp = elem->value, elem);
 				if(err == FF_OK) {
-					free(tmp);
+					if (elem->vsize)
+						free(tmp);
 					elem = elem->right;
 				} else {
 					ff_free_node(node);
@@ -775,11 +810,12 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 			} while (elem);
 
 			node->left = NULL;
-		} else if (ff_type_cast(scanner, filter, valstr, node) != FF_OK) {
+
+		} else if (*valstr == 0 || (ff_type_cast(scanner, filter, valstr, node) != FF_OK)) {
 
 			if (oper == FF_OP_EXIST) {
 				;//OP exist does not need value
-			} else if (valstr[0]==0 && lvalue.literal &&
+			} else if (lvalue.literal && lvalue.options & FF_OPTS_CONST &&
 					   (ff_type_cast(scanner, filter, lvalue.literal, node) == FF_OK)) {
 				;//Also pass if for constant there is a default value
 			} else {
@@ -830,69 +866,64 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
 	return node;
 }
 
-//TODO Refactor this to better readable form. Maybe inlined functions to eval each type and convert _BIG variant to flag
-//TODO: Add, check possible conflicts in node and data types
 //Big suffix refers to what endiannes expect from data function, note that comparation uses native format of architecture
-//TODO: endiannes should be treated in wrapper
-
+// Eval v2 on the way
 int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 {
 	int res = 0;
 	int x = 0;
+	tcore* rc;
+	rc = (tcore*)buf;
 	switch (node->oper) {
 
 	case FF_OP_EQ:
 
 		switch (node->type) {
-		case FF_TYPE_UINT64: return *(uint64_t *) buf == *(uint64_t *) node->value;
-		case FF_TYPE_UINT32: return *(uint32_t *) buf == *(uint32_t *) node->value;
-		case FF_TYPE_UINT16: return *(uint16_t *) buf == *(uint16_t *) node->value;
-		case FF_TYPE_UINT8: return *(uint8_t *) buf == *(uint8_t *) node->value;
-		case FF_TYPE_INT64: return *(int64_t *) buf == *(int64_t *) node->value;
-		case FF_TYPE_INT32: return *(int32_t *) buf == *(int32_t *) node->value;
-		case FF_TYPE_INT16: return *(int16_t *) buf == *(int16_t *) node->value;
-		case FF_TYPE_INT8: return *(int8_t *) buf == *(int8_t *) node->value;
+		case FF_TYPE_UINT64: return *(uint64_t *) buf == (uint64_t) node->value;
+		case FF_TYPE_UINT32: return *(uint32_t *) buf == (uint32_t) node->value;
+		case FF_TYPE_UINT16: return *(uint16_t *) buf == (uint16_t) node->value;
+		case FF_TYPE_UINT8: return *(uint8_t *) buf == (uint8_t) node->value;
+		case FF_TYPE_INT64: return *(int64_t *) buf == (int64_t) node->value;
+		case FF_TYPE_INT32: return *(int32_t *) buf == (int32_t) node->value;
+		case FF_TYPE_INT16: return *(int16_t *) buf == (int16_t) node->value;
+		case FF_TYPE_INT8: return *(int8_t *) buf == (int8_t) node->value;
 
-		case FF_TYPE_DOUBLE: return *(double *) buf == *(double *) node->value;
-		case FF_TYPE_STRING: return !strcmp((char *) buf, node->value);
-		case FF_TYPE_MAC: return !memcmp(buf, node->value, sizeof(ff_mac_t));
+		case FF_TYPE_DOUBLE: return rc->real == *(double*)&node->value;
+		case FF_TYPE_STRING: return !strcmp(buf, node->value);
+		case FF_TYPE_MAC: return !memcmp(buf, &node->value, sizeof(ff_mac_t));
 
 		case FF_TYPE_TIMESTAMP_BIG:
 		case FF_TYPE_UNSIGNED_BIG:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(uint8_t): return *(uint8_t *) buf == *(uint64_t *)node->value;
-			case sizeof(uint16_t): return ntohs(*(uint16_t *) buf) == *(uint64_t *)node->value;
-			case sizeof(uint32_t): return ntohl(*(uint32_t *) buf) == *(uint64_t *)node->value;
-			case sizeof(uint64_t): return ntohll(*(uint64_t *) buf) == *(uint64_t *)node->value;
+			case sizeof(uint8_t): return *(uint8_t *) buf == (uint64_t) node->value;
+			case sizeof(uint16_t): return ntohs(*(uint16_t *) buf) == (uint64_t) node->value;
+			case sizeof(uint32_t): return ntohl(*(uint32_t *) buf) == (uint64_t) node->value;
+			case sizeof(uint64_t): return ntohll(*(uint64_t *) buf) == (uint64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_TIMESTAMP:
 		case FF_TYPE_UNSIGNED:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(uint8_t): return *(uint8_t *) buf == *(uint64_t *)node->value;
-			case sizeof(uint16_t): return *(uint16_t *) buf == *(uint64_t *)node->value;
-			case sizeof(uint32_t): return *(uint32_t *) buf == *(uint64_t *)node->value;
-			case sizeof(uint64_t): return *(uint64_t *) buf == *(uint64_t *)node->value;
+			case sizeof(uint8_t): return *(uint8_t *) buf == (uint64_t) node->value;
+			case sizeof(uint16_t): return *(uint16_t *) buf == (uint64_t) node->value;
+			case sizeof(uint32_t): return *(uint32_t *) buf == (uint64_t) node->value;
+			case sizeof(uint64_t): return *(uint64_t *) buf == (uint64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_SIGNED_BIG:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(int8_t): return *(int8_t *) buf == *(int64_t *)node->value;
-			case sizeof(int16_t): return ntohs(*(int16_t *) buf) == *(int64_t *)node->value;
-			case sizeof(int32_t): return ntohl(*(int32_t *) buf) == *(int64_t *)node->value;
-			case sizeof(int64_t): return ntohll(*(int64_t *) buf) == *(int64_t *)node->value;
+			case sizeof(int8_t): return *(int8_t *) buf == (int64_t) node->value;
+			case sizeof(int16_t): return ntohs(*(int16_t *) buf) == (int64_t) node->value;
+			case sizeof(int32_t): return ntohl(*(int32_t *) buf) == (int64_t) node->value;
+			case sizeof(int64_t): return ntohll(*(int64_t *) buf) == (int64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_SIGNED:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(int8_t): return *(int8_t *) buf == *(int64_t *)node->value;
-			case sizeof(int16_t): return *(int16_t *) buf == *(int64_t *)node->value;
-			case sizeof(int32_t): return *(int32_t *) buf == *(int64_t *)node->value;
-			case sizeof(int64_t): return *(int64_t *) buf == *(int64_t *)node->value;
+			case sizeof(int8_t): return *(int8_t *) buf == (int64_t) node->value;
+			case sizeof(int16_t): return *(int16_t *) buf == (int64_t) node->value;
+			case sizeof(int32_t): return *(int32_t *) buf == (int64_t) node->value;
+			case sizeof(int64_t): return *(int64_t *) buf == (int64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_ADDR:
@@ -933,23 +964,23 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 		case FF_TYPE_MPLS:
 			switch(node->opts) {
 			case FF_OPTS_MPLS_LABEL:
-				res = *((uint32_t *) node->value) == ((ff_mpls_label_t *) buf)[node->n-1].label;
+				res = ((uint32_t) node->value) == ((ff_mpls_label_t *) buf)[0].label;
 				break;
 			case FF_OPTS_MPLS_EXP:
-				res = *((uint32_t *) node->value) == ((ff_mpls_label_t *) buf)[node->n-1].exp;
+				res = ((uint32_t) node->value) == ((ff_mpls_label_t *) buf)[0].exp;
 				break;
 			case FF_OPTS_MPLS_EOS:
 				for (x = 0; x < 10; x++) {
 					if(!((ff_mpls_label_t *) buf)[x].eos) {
 						continue;
 					}
-					return res = (*((uint32_t *) node->value) == x+1);
+					return res = (((uint32_t) node->value) == x+1);
 				}
 				return -1;
 			default: //ANY LABEL
 				res = 0;
 				for (x = 0; x < 10; x++) {
-					res = *((uint32_t *) node->value) == ((ff_mpls_label_t *) buf)[x].label;
+					res = ((uint32_t) node->value) == ((ff_mpls_label_t *) buf)[x].label;
 					if (res) break;
 				}
 				return res;
@@ -962,78 +993,74 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 	case FF_OP_GT:
 
 		switch (node->type) {
-		case FF_TYPE_UINT64: return *(uint64_t *) buf > *(uint64_t *) node->value;
-		case FF_TYPE_UINT32: return *(uint32_t *) buf > *(uint32_t *) node->value;
-		case FF_TYPE_UINT16: return *(uint16_t *) buf > *(uint16_t *) node->value;
-		case FF_TYPE_UINT8: return *(uint8_t *) buf > *(uint8_t *) node->value;
-		case FF_TYPE_INT64: return *(int64_t *) buf > *(int64_t *) node->value;
-		case FF_TYPE_INT32: return *(int32_t *) buf > *(int32_t *) node->value;
-		case FF_TYPE_INT16: return *(int16_t *) buf > *(int16_t *) node->value;
-		case FF_TYPE_INT8: return *(int8_t *) buf > *(int8_t *) node->value;
+		case FF_TYPE_UINT64: return *(uint64_t *) buf > (uint64_t) node->value;
+		case FF_TYPE_UINT32: return *(uint32_t *) buf > (uint32_t) node->value;
+		case FF_TYPE_UINT16: return *(uint16_t *) buf > (uint16_t) node->value;
+		case FF_TYPE_UINT8: return *(uint8_t *) buf > (uint8_t) node->value;
+		case FF_TYPE_INT64: return *(int64_t *) buf > (int64_t) node->value;
+		case FF_TYPE_INT32: return *(int32_t *) buf > (int32_t) node->value;
+		case FF_TYPE_INT16: return *(int16_t *) buf > (int16_t) node->value;
+		case FF_TYPE_INT8: return *(int8_t *) buf > (int8_t) node->value;
 
-		case FF_TYPE_DOUBLE: return *(double *) buf > *(double *) node->value;
+		case FF_TYPE_DOUBLE: return *(double *) buf > *(double*)&node->value;
 		case FF_TYPE_STRING: return strcmp((char *) buf, node->value) < 0;
 
 		case FF_TYPE_TIMESTAMP_BIG:
 		case FF_TYPE_UNSIGNED_BIG:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(uint8_t): return *(uint8_t *) buf > *(uint64_t *)node->value;
-			case sizeof(uint16_t): return ntohs(*(uint16_t *) buf) > *(uint64_t *)node->value;
-			case sizeof(uint32_t): return ntohl(*(uint32_t *) buf) > *(uint64_t *)node->value;
-			case sizeof(uint64_t): return ntohll(*(uint64_t *) buf) > *(uint64_t *)node->value;
+			case sizeof(uint8_t): return *(uint8_t *) buf > (uint64_t) node->value;
+			case sizeof(uint16_t): return ntohs(*(uint16_t *) buf) > (uint64_t) node->value;
+			case sizeof(uint32_t): return ntohl(*(uint32_t *) buf) > (uint64_t) node->value;
+			case sizeof(uint64_t): return ntohll(*(uint64_t *) buf) > (uint64_t) node->value;
 			default: return -1;
 			}
 
 		case FF_TYPE_TIMESTAMP:
 		case FF_TYPE_UNSIGNED:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(uint8_t): return *(uint8_t *) buf > *(uint64_t *)node->value;
-			case sizeof(uint16_t): return *(uint16_t *) buf > *(uint64_t *)node->value;
-			case sizeof(uint32_t): return *(uint32_t *) buf > *(uint64_t *)node->value;
-			case sizeof(uint64_t): return *(uint64_t *) buf > *(uint64_t *)node->value;
+			case sizeof(uint8_t): return *(uint8_t *) buf > (uint64_t) node->value;
+			case sizeof(uint16_t): return *(uint16_t *) buf > (uint64_t) node->value;
+			case sizeof(uint32_t): return *(uint32_t *) buf > (uint64_t) node->value;
+			case sizeof(uint64_t): return *(uint64_t *) buf > (uint64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_SIGNED_BIG:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(int8_t): return *(int8_t *) buf > *(int64_t *)node->value;
-			case sizeof(int16_t): return ntohs(*(int16_t *) buf) > *(int64_t *)node->value;
-			case sizeof(int32_t): return ntohl(*(int32_t *) buf) > *(int64_t *)node->value;
-			case sizeof(int64_t): return ntohll(*(int64_t *) buf) > *(int64_t *)node->value;
+			case sizeof(int8_t): return *(int8_t *) buf > (int64_t) node->value;
+			case sizeof(int16_t): return ntohs(*(int16_t *) buf) > (int64_t) node->value;
+			case sizeof(int32_t): return ntohl(*(int32_t *) buf) > (int64_t) node->value;
+			case sizeof(int64_t): return ntohll(*(int64_t *) buf) > (int64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_SIGNED:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(int8_t): return *(int8_t *) buf > *(int64_t *)node->value;
-			case sizeof(int16_t): return *(int16_t *) buf > *(int64_t *)node->value;
-			case sizeof(int32_t): return *(int32_t *) buf > *(int64_t *)node->value;
-			case sizeof(int64_t): return *(int64_t *) buf > *(int64_t *)node->value;
+			case sizeof(int8_t): return *(int8_t *) buf > (int64_t) node->value;
+			case sizeof(int16_t): return *(int16_t *) buf > (int64_t) node->value;
+			case sizeof(int32_t): return *(int32_t *) buf > (int64_t) node->value;
+			case sizeof(int64_t): return *(int64_t *) buf > (int64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_MPLS:
 			//TODO: Problem here... hm that was so specific
 			switch(node->opts) {
 			case FF_OPTS_MPLS_LABEL:
-				res = *((uint32_t *) node->value) > ((ff_mpls_label_t *) buf)[node->n-1].label;
+				res = ((uint32_t) node->value) > ((ff_mpls_label_t *) buf)[0].label;
 				break;
 			case FF_OPTS_MPLS_EXP:
-				res = *((uint32_t *) node->value) > ((ff_mpls_label_t *) buf)[node->n-1].exp;
+				res = ((uint32_t) node->value) > ((ff_mpls_label_t *) buf)[0].exp;
 				break;
 			case FF_OPTS_MPLS_EOS:
 				for (x = 0; x < 10; x++) {
 					if(!((ff_mpls_label_t *) buf)[x].eos) {
 						continue;
 					}
-					return res = (*((uint32_t *) node->value) > x+1);
+					return res = (((uint32_t) node->value) > x+1);
 				}
 				return -1;
 			default: //ANY LABEL
 				res = 0;
 				for (x = 0; x < 10; x++) {
-					res = *((uint32_t *) node->value) > ((ff_mpls_label_t *) buf)[x].label;
+					res = ((uint32_t) node->value) > ((ff_mpls_label_t *) buf)[x].label;
 					if (res) break;
 				}
 				return res;
@@ -1046,77 +1073,73 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 	case FF_OP_LT:
 
 		switch (node->type) {
-		case FF_TYPE_UINT64: return *(uint64_t *) buf < *(uint64_t *) node->value;
-		case FF_TYPE_UINT32: return *(uint32_t *) buf < *(uint32_t *) node->value;
-		case FF_TYPE_UINT16: return *(uint16_t *) buf < *(uint16_t *) node->value;
-		case FF_TYPE_UINT8: return *(uint8_t *) buf < *(uint8_t *) node->value;
-		case FF_TYPE_INT64: return *(int64_t *) buf < *(int64_t *) node->value;
-		case FF_TYPE_INT32: return *(int32_t *) buf < *(int32_t *) node->value;
-		case FF_TYPE_INT16: return *(int16_t *) buf < *(int16_t *) node->value;
-		case FF_TYPE_INT8: return *(int8_t *) buf < *(int8_t *) node->value;
+		case FF_TYPE_UINT64: return *(uint64_t *) buf < (uint64_t) node->value;
+		case FF_TYPE_UINT32: return *(uint32_t *) buf < (uint32_t) node->value;
+		case FF_TYPE_UINT16: return *(uint16_t *) buf < (uint16_t) node->value;
+		case FF_TYPE_UINT8: return *(uint8_t *) buf < (uint8_t) node->value;
+		case FF_TYPE_INT64: return *(int64_t *) buf < (int64_t) node->value;
+		case FF_TYPE_INT32: return *(int32_t *) buf < (int32_t) node->value;
+		case FF_TYPE_INT16: return *(int16_t *) buf < (int16_t) node->value;
+		case FF_TYPE_INT8: return *(int8_t *) buf < (int8_t) node->value;
 
-		case FF_TYPE_DOUBLE: return *(double *) buf < *(double *) node->value;
+		case FF_TYPE_DOUBLE: return *(double *) buf < *(double*)&node->value;
 		case FF_TYPE_STRING: return strcmp((char *) buf, node->value) > 0;
 
 		case FF_TYPE_TIMESTAMP_BIG:
 		case FF_TYPE_UNSIGNED_BIG:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(uint8_t): return *(uint8_t *) buf < *(uint64_t *)node->value;
-			case sizeof(uint16_t): return ntohs(*(uint16_t *) buf) < *(uint64_t *)node->value;
-			case sizeof(uint32_t): return ntohl(*(uint32_t *) buf) < *(uint64_t *)node->value;
-			case sizeof(uint64_t): return ntohll(*(uint64_t *) buf) < *(uint64_t *)node->value;
+			case sizeof(uint8_t): return *(uint8_t *) buf < (uint64_t) node->value;
+			case sizeof(uint16_t): return ntohs(*(uint16_t *) buf) < (uint64_t) node->value;
+			case sizeof(uint32_t): return ntohl(*(uint32_t *) buf) < (uint64_t) node->value;
+			case sizeof(uint64_t): return ntohll(*(uint64_t *) buf) < (uint64_t) node->value;
 			default: return -1;
 			}
 
 		case FF_TYPE_TIMESTAMP:
 		case FF_TYPE_UNSIGNED:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(uint8_t): return *(uint8_t *) buf < *(uint64_t *)node->value;
-			case sizeof(uint16_t): return *(uint16_t *) buf < *(uint64_t *)node->value;
-			case sizeof(uint32_t): return *(uint32_t *) buf < *(uint64_t *)node->value;
-			case sizeof(uint64_t): return *(uint64_t *) buf < *(uint64_t *)node->value;
+			case sizeof(uint8_t): return *(uint8_t *) buf < (uint64_t) node->value;
+			case sizeof(uint16_t): return *(uint16_t *) buf < (uint64_t) node->value;
+			case sizeof(uint32_t): return *(uint32_t *) buf < (uint64_t) node->value;
+			case sizeof(uint64_t): return *(uint64_t *) buf < (uint64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_SIGNED_BIG:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(int8_t): return *(int8_t *) buf < *(int64_t *)node->value;
-			case sizeof(int16_t): return ntohs(*(int16_t *) buf) < *(int64_t *)node->value;
-			case sizeof(int32_t): return ntohl(*(int32_t *) buf) < *(int64_t *)node->value;
-			case sizeof(int64_t): return ntohll(*(int64_t *) buf) < *(int64_t *)node->value;
+			case sizeof(int8_t): return *(int8_t *) buf < (int64_t) node->value;
+			case sizeof(int16_t): return ntohs(*(int16_t *) buf) < (int64_t) node->value;
+			case sizeof(int32_t): return ntohl(*(int32_t *) buf) < (int64_t) node->value;
+			case sizeof(int64_t): return ntohll(*(int64_t *) buf) < (int64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_SIGNED:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
-			case sizeof(int8_t): return *(int8_t *) buf < *(int64_t *)node->value;
-			case sizeof(int16_t): return *(int16_t *) buf < *(int64_t *)node->value;
-			case sizeof(int32_t): return *(int32_t *) buf < *(int64_t *)node->value;
-			case sizeof(int64_t): return *(int64_t *) buf < *(int64_t *)node->value;
+			case sizeof(int8_t): return *(int8_t *) buf < (int64_t) node->value;
+			case sizeof(int16_t): return *(int16_t *) buf < (int64_t) node->value;
+			case sizeof(int32_t): return *(int32_t *) buf < (int64_t) node->value;
+			case sizeof(int64_t): return *(int64_t *) buf < (int64_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_MPLS:
 			switch(node->opts) {
 			case FF_OPTS_MPLS_LABEL:
-				res = *((uint32_t *) node->value) < ((ff_mpls_label_t *) buf)[node->n-1].label;
+				res = ((uint32_t) node->value) < ((ff_mpls_label_t *) buf)[0].label;
 				break;
 			case FF_OPTS_MPLS_EXP:
-				res = *((uint32_t *) node->value) < ((ff_mpls_label_t *) buf)[node->n-1].exp;
+				res = ((uint32_t) node->value) < ((ff_mpls_label_t *) buf)[0].exp;
 				break;
 			case FF_OPTS_MPLS_EOS:
 				for (x = 0; x < 10; x++) {
 					if(!((ff_mpls_label_t *) buf)[x].eos) {
 						continue;
 					}
-					return res = (*((uint32_t *) node->value) < x+1);
+					return res = (((uint32_t) node->value) < x+1);
 				}
 				return -1;
 			default: //ANY LABEL
 				res = 0;
 				for (x = 0; x < 10; x++) {
-					res = *((uint32_t *) node->value) < ((ff_mpls_label_t *) buf)[x].label;
+					res = ((uint32_t) node->value) < ((ff_mpls_label_t *) buf)[x].label;
 					if (res) break;
 				}
 				return res;
@@ -1131,44 +1154,42 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 
 		switch (node->type) {
 
-		case FF_TYPE_UINT16: return ((*(uint16_t *) buf) & *(uint16_t *) node->value) ==
-	                            *(uint16_t *) node->value;
+		case FF_TYPE_UINT16: return ((*(uint16_t *) buf) & (uint16_t) node->value) ==
+	                            (uint16_t) node->value;
 
-		case FF_TYPE_UINT8: return ((*(uint8_t *) buf) & *(uint8_t *) node->value) ==
-	                           *(uint8_t *) node->value;
+		case FF_TYPE_UINT8: return ((*(uint8_t *) buf) & (uint8_t) node->value) ==
+	                           (uint8_t) node->value;
 
 		case FF_TYPE_UNSIGNED_BIG:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
 			case sizeof(uint64_t):
-				return (ntohll(*(uint64_t *) buf) & *(uint64_t *) node->value) ==
-					   *(uint64_t *) node->value;
+				return (ntohll(*(uint64_t *) buf) & (uint64_t) node->value) ==
+					   (uint64_t) node->value;
 			case sizeof(uint32_t):
-				return (ntohl(*(uint32_t *) buf) & *(uint32_t *) node->value) ==
-					   *(uint32_t *) node->value;
+				return (ntohl(*(uint32_t *) buf) & (uint32_t) node->value) ==
+					   (uint32_t) node->value;
 			case sizeof(uint16_t):
-				return (ntohs(*(uint16_t *) buf) & *(uint16_t *) node->value) ==
-					   *(uint16_t *) node->value;
+				return (ntohs(*(uint16_t *) buf) & (uint16_t) node->value) ==
+					   (uint16_t) node->value;
 			case sizeof(uint8_t):
-				return ((*(uint8_t *) buf) & *(uint8_t *) node->value) ==
-					   *(uint8_t *) node->value;
+				return ((*(uint8_t *) buf) & (uint8_t) node->value) ==
+					   (uint8_t) node->value;
 			default: return -1;
 			}
 		case FF_TYPE_UNSIGNED:
-			if (size > node->vsize) { return -1; }                /* too big integer */
 			switch (size) {
 			case sizeof(uint64_t):
-				return ((*(uint64_t *) buf) & *(uint64_t *) node->value) ==
-					   *(uint64_t *) node->value;
+				return ((*(uint64_t *) buf) & (uint64_t) node->value) ==
+					   (uint64_t) node->value;
 			case sizeof(uint32_t):
-				return ((*(uint32_t *) buf) & *(uint32_t *) node->value) ==
-					   *(uint32_t *) node->value;
+				return ((*(uint32_t *) buf) & (uint32_t) node->value) ==
+					   (uint32_t) node->value;
 			case sizeof(uint16_t):
-				return ((*(uint16_t *) buf) & *(uint16_t *) node->value) ==
-					   *(uint16_t *) node->value;
+				return ((*(uint16_t *) buf) & (uint16_t) node->value) ==
+					   (uint16_t) node->value;
 			case sizeof(uint8_t):
-				return ((*(uint8_t *) buf) & *(uint8_t *) node->value) ==
-					   *(uint8_t *) node->value;
+				return ((*(uint8_t *) buf) & (uint8_t) node->value) ==
+					   (uint8_t) node->value;
 			default: return -1;
 			}
 
@@ -1178,7 +1199,7 @@ int ff_oper_eval(char* buf, size_t size, ff_node_t *node)
 		}
 
 	case FF_OP_EXIST:
-		if (size > 0) return 1;
+		if ((char*)buf) return 1;
 		return 0;
 
 	default: return -1;
@@ -1262,13 +1283,13 @@ int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec) {
 
 
 	switch (node->oper) {
-	default: return ff_oper_eval(buf, size, node);
+	default: return ff_oper_eval((*(char**)buf), size, node);
 	case FF_OP_EXIST: return exist;		//Check for presence of item
 		// Compare against list (right branch is NULL) data retireved once */
 	case FF_OP_IN:
 		node = node->right;
 		do {
-			res = ff_oper_eval(buf, size, node);
+			res = ff_oper_eval((*(char**)buf), size, node);
 			node = node->right;
 		 } while (res <= 0 && node);
 		 return res;
@@ -1387,8 +1408,5 @@ ff_error_t ff_free(ff_t *filter) {
 	return FF_OK;
 }
 
-//TODO: pass by reference
-//TODO: internal typedefs
 //TODO: tests
-//TODO: profiling
 

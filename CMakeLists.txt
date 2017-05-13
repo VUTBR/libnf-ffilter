@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 2.8.8)
 
 project(nffilter)
 
-set(NF_FILTER_DESCRIPTION, "Lorem ipsum")
+set(NF_FILTER_DESCRIPTION, "Interpreter of filtering language with support for multiple types")
 set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} -Wall -std=gnu11")
 set(CMAKE_C_FLAGS_RELEASE   "-O3 -DNDEBUG")
 set(CMAKE_C_FLAGS_DEBUG     "-g -O0 -Wextra -pedantic")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -O1 -Wextra -pedantic")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -O1")
 
 set(ENABLE_TESTING ON)
 
@@ -14,6 +14,7 @@ set(nf_filter_VERSION_MAJOR 1)
 set(nf_filter_VERSION_MINOR 0)
 
 set(SOURCES ${SOURCES} "ffilter.c")
+set(SOURCES ${SOURCES} "fcore.c")
 set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.c")
 set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c")
 #set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_internal.h")
@@ -103,6 +104,12 @@ target_link_libraries(data_types
         nf_filter
         gtest_main)
 add_test(NAME data_types_test COMMAND data_types)
+
+#add_executable(interface tests/ipx_filter_interface.cpp)
+#target_link_libraries(interface
+#        nf_filter
+#        gtest_main)
+#add_test(NAME interface_test COMMAND data_types)
 ###Google test
 
 # Make library target

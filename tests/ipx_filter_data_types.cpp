@@ -132,18 +132,18 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
 		lvalue->id[0].index = FLD_MAC_ADDR;
 
 	} else if (!strcmp(valstr, "mplsLabel")) {
-		type = FF_TYPE_MPLS;			//Unimplemented
+		type = FF_TYPE_MPLS;
 		lvalue->id[0].index = FLD_MPLS_STACK_LABEL;
 		lvalue->n = 1;
 
 	} else if (!strcmp(valstr, "mplsExp")) {
-		type = FF_TYPE_MPLS;			//Unimplemented
+		type = FF_TYPE_MPLS;
 		lvalue->id[0].index = FLD_MPLS_STACK_LABEL;
 		lvalue->options |= FF_OPTS_MPLS_EXP;
 		lvalue->n = 1;
 
 	} else if (!strcmp(valstr, "mplsEos")) {
-		type = FF_TYPE_MPLS;			//Unimplemented
+		type = FF_TYPE_MPLS;
 		lvalue->id[0].index = FLD_MPLS_STACK_LABEL;
 		lvalue->options |= FF_OPTS_MPLS_EOS;
 
@@ -191,7 +191,7 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 {
 	struct mock_rec *trec = (struct mock_rec*)rec;
 
-	const char *data;
+	char *data;
 
 	switch(extid.index) {
 	case FLD_SRC_NUMBER:
@@ -253,7 +253,7 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 	default : *size = 0; return FF_ERR_OTHER;
 	}
 
-	memcpy(buf, data, *size);
+	*((char**)buf) = data;
 	return FF_OK;
 }
 
@@ -616,15 +616,15 @@ TEST_F(filter_types_test, mac)
 	fillMAC(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff);
 	EXPECT_TRUE(eval(&rec));
 
-	ASSERT_EQ(FF_OK, init("mac 01:23:45:67:89"));
+	ASSERT_EQ(FF_OK, init("mac 01:23:45:56:67:89"));
 	fillMAC(0x01, 0x23, 0x45, 0x56, 0x67, 0x89);
 	EXPECT_TRUE(eval(&rec));
 
-	ASSERT_EQ(FF_OK, init("mac = 1:23:45:67:89"));
+	ASSERT_EQ(FF_OK, init("mac = 1:23:45:56:67:0x89"));
 	fillMAC(0x01, 0x23, 0x45, 0x56, 0x67, 0x89);
 	EXPECT_TRUE(eval(&rec));
 
-	ASSERT_EQ(FF_OK, init("mac in [ 1:23:45:67:0 0:0:0:0:0:0]"));
+	ASSERT_EQ(FF_OK, init("mac in [ 1:23:45:56:67:0 0:0:0:0:0:0]"));
 	fillMAC(0x01, 0x23, 0x45, 0x56, 0x67, 0x0);
 	EXPECT_TRUE(eval(&rec));
 	fillMAC(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff);
@@ -648,10 +648,10 @@ TEST_F(filter_types_test, string)
 	fillMessage("Helloworld");
 	EXPECT_TRUE(eval(&rec));
 
-	ASSERT_EQ(FF_OK, init("message & Helloworld"));
-	fillMessage("world");
+	ASSERT_EQ(FF_OK, init("message & world"));
+	fillMessage("Hello world");
 	EXPECT_TRUE(eval(&rec));
-	fillMessage("worldd");
+	fillMessage("worl");
 	EXPECT_FALSE(eval(&rec));
 
 	ASSERT_EQ(FF_OK, init("message = Helloworld"));
@@ -660,17 +660,17 @@ TEST_F(filter_types_test, string)
 	fillMessage("world");
 	EXPECT_FALSE(eval(&rec));
 
-	ASSERT_EQ(FF_OK, init("message < Helloworld"));
-	fillMessage("world");
-	EXPECT_TRUE(eval(&rec));
-	fillMessage("worldworldworld");
-	EXPECT_FALSE(eval(&rec));
+	ASSERT_NE(FF_OK, init("message < Helloworld"));
+//	fillMessage("world");
+//	EXPECT_TRUE(eval(&rec));
+//	fillMessage("worldworldworld");
+//	EXPECT_FALSE(eval(&rec));
 
-	ASSERT_EQ(FF_OK, init("message > Helloworld"));
-	fillMessage("world");
-	EXPECT_FALSE(eval(&rec));
-	fillMessage("worldworldworld");
-	EXPECT_TRUE(eval(&rec));
+	ASSERT_NE(FF_OK, init("message > Helloworld"));
+//	fillMessage("world");
+//	EXPECT_FALSE(eval(&rec));
+//	fillMessage("worldworldworld");
+//	EXPECT_TRUE(eval(&rec));
 
 	ASSERT_EQ(FF_OK, init("message in [ Helloworld tlrd etc... ]"));
 	fillMessage("tlrd");
@@ -684,6 +684,7 @@ TEST_F(filter_types_test, string)
 
 	ASSERT_EQ(FF_OK, init("message Helloworld"));
 	ASSERT_EQ(FF_OK, init("message Hello world"));
+	EXPECT_EQ(FF_OK, init("message \"multi word string whiht no quotes\""));
 
 	EXPECT_NE(FF_OK, init("message !@#$%^&*()_+=-0987654321`~"));
 	EXPECT_NE(FF_OK, init("message multi word string whiht no quotes"));
@@ -752,10 +753,10 @@ TEST_F(filter_types_test, mpls_Label)
 	fillMPLS("\x67\x3a\x7c\x01");
 	EXPECT_FALSE(eval(&rec));
 
+	EXPECT_EQ(FF_OK, init("mplsLabel in [10 11]"));
 
 	EXPECT_NE(FF_OK, init("mplsLabel > 10"));
 	EXPECT_NE(FF_OK, init("mplsLabel < 10"));
-	EXPECT_NE(FF_OK, init("mplsLabel in [10 11]"));
 
 	EXPECT_NE(FF_OK, init("mplsLabel & 10"));
 	EXPECT_NE(FF_OK, init("mplsLabel invalid-input"));
@@ -789,10 +790,11 @@ TEST_F(filter_types_test, mpls_Eos)
 			 "\x51\x02\x00\x00");
 	EXPECT_TRUE(eval(&rec));
 
+	EXPECT_EQ(FF_OK, init("mplsEos in [10 11]"));
+
 	//Neg for invalid operators
 	EXPECT_NE(FF_OK, init("mplsEos > 10"));
 	EXPECT_NE(FF_OK, init("mplsEos < 10"));
-	EXPECT_NE(FF_OK, init("mplsEos in [10 11]"));
 
 	EXPECT_NE(FF_OK, init("mplsEos & 10"));
 	EXPECT_NE(FF_OK, init("mplsEos invalid-input"));
@@ -828,11 +830,11 @@ TEST_F(filter_types_test, mpls_Exp)
 	fillMPLS("\x3a\x00\x00\x00");
 	EXPECT_FALSE(eval(&rec));
 
+	EXPECT_EQ(FF_OK, init("mplsExp in [10 11]"));
 
 	//Negative for invalid operators
 	EXPECT_NE(FF_OK, init("mplsExp > 10"));
 	EXPECT_NE(FF_OK, init("mplsExp < 10"));
-	EXPECT_NE(FF_OK, init("mplsExp in [10 11]"));
 
 	EXPECT_NE(FF_OK, init("mplsExp & 10"));
 	EXPECT_NE(FF_OK, init("mplsExp invalid-input"));

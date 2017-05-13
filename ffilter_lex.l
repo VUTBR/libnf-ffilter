@@ -77,7 +77,7 @@ any 				{ return ANY; }
                     strncpy(yylval->string, yytext, FF_MAX_STRING - 1);
 					return STRING; }
 
-\"[^"]*\"   {
+\"[^"]+\"   {
                     strncpy(yylval->string, yytext, FF_MAX_STRING - 1);
 					return QUOTED; }
 

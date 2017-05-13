@@ -153,6 +153,7 @@ typedef enum {
 	FF_OPTS_MPLS_LABEL = 0x06,
 	FF_OPTS_MPLS_EOS = 0x04,
 	FF_OPTS_MPLS_EXP = 0x02,
+	FF_OPTS_CONST = 0x08,
 } ff_opts_t;
 
 
@@ -191,6 +192,7 @@ typedef struct ff_lvalue_s {
 	/** 0 for not set */
 	int n;
 	const char * literal;
+
 } ff_lvalue_t;
 
 /* node of syntax tree */
@@ -204,8 +206,6 @@ typedef struct ff_node_s {
 	ff_oper_t oper;               /* operation */
 	//TODO: get rid of it mpls can have multiple operators, transcoding can be done via lvalue
 	int opts;                     /* mpls stack data selector label, exp or eos */
-	//TODO: can be transfered to value into some mpls structure
-	int n;                        /* extra identification for mpls<n> variant */
 
 	//TODO: transform to heap data structure - no pointers
 	struct ff_node_s *left;
