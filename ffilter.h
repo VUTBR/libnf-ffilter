@@ -69,21 +69,6 @@
 #define HAVE_HTONLL 1
 #endif
 
-typedef struct ff_ip_s { uint32_t data[4]; } ff_ip_t; /*!< IPv4/IPv6 address */
-typedef struct ff_net_s { ff_ip_t ip; ff_ip_t mask; int ver; } ff_net_t;
-
-typedef struct ff_mpls_s { uint32_t val; uint32_t label; } ff_mpls_t; /*!< In node type for mpls */
-
-typedef union {
-	//TODO: Test on big-endian machine
-	struct {
-		unsigned eos : 1;
-		unsigned exp : 3;
-		unsigned label : 20;
-		unsigned none : 8;
-	};
-	uint32_t data;
-} ff_mpls_label_t;
 
 /*! \brief Supported data types */
 typedef enum {
@@ -125,11 +110,26 @@ typedef int16_t ff_int16_t;
 typedef int32_t ff_int32_t;
 typedef int64_t ff_int64_t;
 typedef double ff_double_t;
-typedef ff_ip_t ff_addr_t;
 typedef char ff_mac_t[8];
-typedef char* ff_string_t;
-typedef ff_mpls_label_t ff_mpls_stack_t[10];
 typedef uint64_t ff_timestamp_t;
+
+typedef struct ff_ip_s { uint32_t data[4]; } ff_ip_t; /*!< IPv4/IPv6 address */
+typedef struct ff_net_s { ff_ip_t ip; ff_ip_t mask; int ver; } ff_net_t;
+
+typedef struct ff_mpls_s { uint32_t val; uint32_t label; } ff_mpls_t; /*!< In node type for mpls */
+
+typedef union {
+	//TODO: Test on big-endian machine
+	struct {
+		unsigned eos : 1;
+		unsigned exp : 3;
+		unsigned label : 20;
+		unsigned none : 8;
+	};
+	uint32_t data;
+} ff_mpls_label_t;
+
+typedef struct ff_mpls_stack_s { ff_mpls_label_t id[10]; } ff_mpls_stack_t;
 
 /**
  * \typedef ffilter interface return codes
@@ -173,6 +173,9 @@ typedef enum {
 	FF_OP_ISSET,
 	FF_OP_EXIST
 } ff_oper_t;
+
+extern const char* ff_oper_str[FF_OP_EXIST+1];
+extern const char* ff_type_str[FF_TYPE_TIMESTAMP_BIG+1];
 
 /** \brief External identification of value */
 typedef union {

@@ -141,10 +141,26 @@ typedef union ff_core_u {
 	ff_mpls_t mpls;
 
 	char* str;
-	ff_mpls_label_t* label;
 	ff_net_t* net;
 	ff_ip_t* ip;
 } tcore;
+
+typedef union ff_rec_u {
+	uint64_t ui;
+	uint32_t ui4;
+	uint16_t ui2;
+	uint8_t ui1;
+	int64_t i;
+	int32_t i4;
+	int16_t i2;
+	int8_t i1;
+	double real;
+
+	char str;
+	ff_mpls_stack_t mpls;
+	ff_net_t net;
+	ff_ip_t ip;
+} trec;
 
 void ff_space_dynamic(ff_node_t* node);
 

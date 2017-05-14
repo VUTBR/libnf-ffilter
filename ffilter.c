@@ -26,8 +26,33 @@
 #include "ffilter.h"
 #include "fcore.h"
 
-#define ff_reint_cast(type, ptr) (*(((type)*)(ptr)))
+const char* ff_oper_str[] = {
+		[FF_OP_EQ] = "EQ/=/==",
+		[FF_OP_LT] = "LT/<",
+		[FF_OP_GT] = "GT/>",
+		[FF_OP_ISSET] = "LIKE/&"
+};
 
+const char* ff_type_str[] = {
+		[FF_TYPE_UNSIGNED] = "uint",
+		[FF_TYPE_TIMESTAMP] = "uint",
+		[FF_TYPE_TIMESTAMP_BIG] = "uint",
+		[FF_TYPE_UNSIGNED_BIG] = "net byte order uint",
+		[FF_TYPE_UINT64] = "uint64",
+		[FF_TYPE_UINT32] = "uint32",
+		[FF_TYPE_UINT16] = "uint16",
+		[FF_TYPE_UINT8] = "uint8",
+		[FF_TYPE_SIGNED] = "int",
+		[FF_TYPE_SIGNED_BIG] = "net byte order int",
+		[FF_TYPE_INT64] = "int64",
+		[FF_TYPE_INT32] = "int32",
+		[FF_TYPE_INT16] = "int16",
+		[FF_TYPE_UINT8] = "int8",
+		[FF_TYPE_DOUBLE] = "double",
+		[FF_TYPE_ADDR] = "ip address",
+		[FF_TYPE_MAC] = "mac address",
+		[FF_TYPE_STRING] = "string",
+};
 
 /**
  * \brief Convert unit character to positive power of 10
@@ -713,7 +738,7 @@ ff_node_t* ff_duplicate_node(ff_node_t* original) {
 
 /* Add leaf entry into expr tree */
 ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t oper, char *valstr) {
-	//int field;
+
 	ff_node_t *node;
 	ff_node_t *retval;
 	ff_lvalue_t lvalue;
@@ -773,15 +798,6 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 		node->field = lvalue.id[0];
 		node->opts = (lvalue.options & (FF_OPTS_MPLS_EOS | FF_OPTS_MPLS_EXP | FF_OPTS_MPLS_LABEL));
 
-		if (node->type == FF_TYPE_MPLS) ((ff_mpls_t*) &node->value)->label = lvalue.n;
-
-		ff_attr_t valid;
-		if ((valid = ff_validate(node->type, node->oper, node->value, &lvalue)) == FFAT_ERR) {
-			ff_free_node(node);
-			ff_set_error(filter, "Semantic error: Bad type operator. Operator %s is not valid for type %s", "lick","me");
-			retval = NULL;
-			break;
-		}
 
 		retval = node;
 
@@ -827,6 +843,19 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 			node->left = NULL;
 			node->right = NULL;
 		}
+
+		ff_attr_t valid;
+		if ((valid = ff_validate(node->type, node->oper, node->value, &lvalue)) == FFAT_ERR) {
+
+			ff_set_error(filter, "Semantic error:"
+						" Operator %s is not valid for type %s",
+			            ff_oper_str[node->oper], ff_type_str[node->type]);
+
+			ff_free_node(node);
+			retval = NULL;
+			break;
+		}
+		node->type = valid;
 
 		if (lvalue.id[1].index != 0) {
 			//Setup nodes in or configuration for pair fields (src/dst etc.)
@@ -1283,13 +1312,13 @@ int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec) {
 
 
 	switch (node->oper) {
-	default: return ff_oper_eval((*(char**)buf), size, node);
+	default: return ff_oper_eval_V2(buf, size, node);
 	case FF_OP_EXIST: return exist;		//Check for presence of item
 		// Compare against list (right branch is NULL) data retireved once */
 	case FF_OP_IN:
 		node = node->right;
 		do {
-			res = ff_oper_eval((*(char**)buf), size, node);
+			res = ff_oper_eval_V2(buf, size, node);
 			node = node->right;
 		 } while (res <= 0 && node);
 		 return res;
