@@ -633,6 +633,27 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 	return FF_OK;
 }
 
+ff_error_t ff_type_validate(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t* node, ff_lvalue_t* info)
+{
+	int retval;
+	ff_attr_t valid;
+
+	if ((retval = ff_type_cast(scanner, filter, valstr, node)) != FF_OK) {
+		return retval;
+	}
+
+	if ((valid = ff_validate(node->type, node->oper,
+	                         node->value, info)) == FFAT_ERR) {
+
+		ff_set_error(filter, "Semantic error: Operator %s is not valid"
+				             " for type %s", ff_oper_str[node->oper],
+		             ff_type_str[node->type]);
+
+		return FF_ERR_OTHER_MSG;
+	}
+	node->type = valid;
+	return FF_OK;
+}
 
 /* set error to error buffer */
 /* set error string */
@@ -803,38 +824,44 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 
 		retval = node;
 
+		//If node contains in list
 		if (oper == FF_OP_IN) {
 			void* tmp;
 			int err = FF_OK;
+			//List is in value
 			ff_node_t *elem = (ff_node_t *)valstr;
 
+			//Connect it to right subtree
 			node->right = elem;
 			retval = node;
 
+			//Now process all items
 			do {
+				//Copy type and field or original
 				elem->type = node->type;
 				elem->field = node->field;
 				elem->vsize = 0;
-				err = ff_type_cast(scanner, filter, tmp = elem->value, elem);
+				//Cast strings
+				err = ff_type_validate(scanner, filter, tmp = elem->value, elem, &lvalue);
 				if(err == FF_OK) {
-					if (elem->vsize)
-						free(tmp);
 					elem = elem->right;
 				} else {
 					ff_free_node(node);
 					retval = NULL;
 					break;
 				}
+				free(tmp);
 			} while (elem);
 
 			node->left = NULL;
 
-		} else if (*valstr == 0 || (ff_type_cast(scanner, filter, valstr, node) != FF_OK)) {
+		//Normal behavior, convert one value
+		} else if (*valstr == 0 || (ff_type_validate(scanner, filter, valstr, node, &lvalue) != FF_OK)) {
 
 			if (oper == FF_OP_EXIST) {
 				;//OP exist does not need value
 			} else if (lvalue.literal && lvalue.options & FF_OPTS_CONST &&
-					   (ff_type_cast(scanner, filter, lvalue.literal, node) == FF_OK)) {
+					   (ff_type_validate(scanner, filter, lvalue.literal, node, &lvalue) == FF_OK)) {
 				;//Also pass if for constant there is a default value
 			} else {
 				retval = NULL;
@@ -845,19 +872,6 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 			node->left = NULL;
 			node->right = NULL;
 		}
-
-		ff_attr_t valid;
-		if ((valid = ff_validate(node->type, node->oper, node->value, &lvalue)) == FFAT_ERR) {
-
-			ff_set_error(filter, "Semantic error:"
-						" Operator %s is not valid for type %s",
-			            ff_oper_str[node->oper], ff_type_str[node->type]);
-
-			ff_free_node(node);
-			retval = NULL;
-			break;
-		}
-		node->type = valid;
 
 		if (lvalue.id[1].index != 0) {
 			//Setup nodes in or configuration for pair fields (src/dst etc.)

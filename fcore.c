@@ -304,7 +304,6 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		} else {
 			return -1;
 		}
-		rc = &hord; //Switch ptr to valid data;
 		break;
 
 	case FFAT_EQ_UI:
@@ -328,9 +327,10 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		} else {
 			return -1;
 		}
-		rc = &hord;
 		break;
 
+
+	/*
 	case FFAT_EQ_ADP:
 	case FFAT_EQ_AD6:
 	case FFAT_EQ_AD4:
@@ -341,15 +341,18 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		} else if (size != sizeof(ff_ip_t)) {
 			return -1;
 		}
+	*/
 
 	default: ;
 	}
+
 
 	//Eval switch
 	switch ((ff_attr_t)node->type) {
 
 	case FFAT_EQ_UIBE:
 	case FFAT_EQ_UI:
+		return hord.ui == fl->ui;
 	case FFAT_EQ_UI8:
 		return rc->ui == fl->ui;
 	case FFAT_EQ_UI4:
@@ -361,6 +364,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 	case FFAT_GT_UIBE:
 	case FFAT_GT_UI:
+		return hord.ui > fl->ui;
 	case FFAT_GT_UI8:
 		return rc->ui > fl->ui;
 	case FFAT_GT_UI4:
@@ -372,6 +376,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 	case FFAT_LT_UIBE:
 	case FFAT_LT_UI:
+		return hord.ui < fl->ui;
 	case FFAT_LT_UI8:
 		return rc->ui < fl->ui;
 	case FFAT_LT_UI4:
@@ -383,6 +388,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 	case FFAT_IS_UIBE:
 	case FFAT_IS_UI:
+		return (hord.ui & fl->ui) == fl->ui;
 	case FFAT_IS_UI8:
 		return (rc->ui & fl->ui) == fl->ui;
 	case FFAT_IS_UI4:
@@ -395,6 +401,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 	case FFAT_EQ_IBE:
 	case FFAT_EQ_I:
+		return hord.i == fl->i;
 	case FFAT_EQ_I8:
 		return rc->i == fl->i;
 	case FFAT_EQ_I4:
@@ -406,6 +413,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 	case FFAT_GT_IBE:
 	case FFAT_GT_I:
+		return hord.i > fl->i;
 	case FFAT_GT_I8:
 		return rc->i > fl->i;
 	case FFAT_GT_I4:
@@ -417,6 +425,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 	case FFAT_LT_IBE:
 	case FFAT_LT_I:
+		return hord.i < fl->i;
 	case FFAT_LT_I8:
 		return rc->i < fl->i;
 	case FFAT_LT_I4:
@@ -428,6 +437,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 	case FFAT_IS_IBE:
 	case FFAT_IS_I:
+		return (hord.i & fl->i) == fl->i;
 	case FFAT_IS_I8:
 		return (rc->i & fl->i) == fl->i;
 	case FFAT_IS_I4:
@@ -454,17 +464,36 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		return !memcmp(&rc->ui, &fl->ui, sizeof(ff_mac_t));
 
 	case FFAT_EQ_AD4:
+		if (size == 4)
+			return (rc->ip.data[0] == fl->net->ip.data[3]);
+		return	!rc->ip.data[0] &&
+				!rc->net.ip.data[1] &&
+				!rc->net.ip.data[2] &&
+		        (rc->ip.data[0] == fl->net->ip.data[3]);
+
 	case FFAT_EQ_AD6:
+		if (size == 4)
+			return 0;
 		return !memcmp(&rc->ip, fl->ip->data, sizeof(ff_ip_t)); //Exact compare
 
-	case FFAT_EQ_ADP:   //Prefix eval
+	case FFAT_EQ_ADP:    //Prefix eval
+		if (size == 4) { //realign to 16B
+			memset(&hord.ip, 0, sizeof(ff_ip_t));
+			hord.ip.data[3] = rc->ip.data[0];
+
+			res = 1;
+			for (x = 0; x < 4; x++)
+				res &= ((hord.ip.data[x] & fl->net->mask.data[x])
+				        == fl->net->ip.data[x]);
+			return res;
+		}
+
 		res = 1;
 		for (x = 0; x < 4; x++)
 			res &= ((rc->ip.data[x] & fl->net->mask.data[x])
 			       == fl->net->ip.data[x]);
 		return res;
 
-	//TODO: fix validation, fix overstepping mpls
 	//This type is used only of no options are set and EQ operator is used
 	case FFAT_EQ_ML:
 		res = 0;

@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 
 extern "C" {
-#include "profiles/ffilter.h"
+#include "ffilter.h"
 
 }
 
@@ -178,11 +178,12 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
 /**
  * \breif Mockup data func callback to test all ffilter supported data types
  * Test data func selects data from record based on external identification,
- * which was set by lookup callback \see test_lookup_func
+ * which was set by lookup callback \see test_lookup_func. Buffer always
+ * contains pointer to data, size contains length of valid data.
  * @param filter
  * @param rec test_record reference
  * @param extid Ident. of field
- * @param buf Selected data are copied here
+ * @param buf Selected reference copied here, also makes place for data to copy to if necessary
  * @param size Length of selected data
  * @return FF_OK on data copied
  */
@@ -190,7 +191,7 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 {
 	struct test_record *trec = (struct test_record*)rec;
 
-	const char *data;
+	char *data;
 
 	switch(extid.index) {
 	case FLD_SRC_NUMBER64:
@@ -229,7 +230,7 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 	default : *size = 0; return FF_ERR_OTHER;
 	}
 
-	memcpy(buf, data, *size);
+	*(char**)buf = data;
 	return FF_OK;
 }
 

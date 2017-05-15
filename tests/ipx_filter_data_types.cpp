@@ -575,7 +575,7 @@ TEST_F(filter_types_test, ip_addr)
 
 	EXPECT_EQ(FF_OK, init("addr in [ \"192.168.0.1 255.255.255.0\" ]"));
 	fillIP("192.168.0.240");
-	EXPECT_FALSE(eval(&rec));
+	EXPECT_TRUE(eval(&rec));
 	fillIP("255.255.255.0");
 	EXPECT_FALSE(eval(&rec));
 
