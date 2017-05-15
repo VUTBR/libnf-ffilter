@@ -38,7 +38,7 @@ enum test_record_field {
 struct mock_rec {
 	double real;
 	int64_t i64;
-	int8_t i64_2;
+	int64_t i64_2;
 	int32_t i32;
 	int16_t i16;
 	int8_t i8;
@@ -850,29 +850,5 @@ TEST_F(filter_types_test, mpls_Exp)
 
 	//Negative for invalid operators
 	EXPECT_NE(FF_OK, init("mplsExp invalid-input"));
-}
-
-
-TEST_F(filter_types_test, ip_performance)
-{
-	srand(time(0));
-	struct mock_rec * rec_list = (struct mock_rec*)malloc(4096*sizeof(struct mock_rec));
-
-	init("addr 192.168.2.64");
-	fillIP("192.168.2.64");
-	rec_list[0].addr[3] = rec.addr[3];
-	for (int x = 1; x < 4096; x++) {
-		rec_list[x].addr[3] = rand();
-	}
-
-	clock_t t;
-	t = clock();
-	int32_t sum = 0;
-	for (int64_t x = 0; x < 10000000LL; x++) {
-		sum += ff_eval(filter, &rec_list[x & 0x0fff]);
-	}
-	t = clock() - t;
-	printf("Evaluation took %lf seconds\nPerformance: %.0lf ip per second\nMatches: %d\n", ((double)t/CLOCKS_PER_SEC), 1/(((double)t)/(CLOCKS_PER_SEC))*10000000, sum);
-
 }
 

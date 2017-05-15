@@ -271,8 +271,8 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
  */
 int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 {
-	const tcore* fl = (tcore*)(&node->value); //filter node data
-	trec* rc = (trec*) *((char**)buf); //record data
+	const tcore* const fl = (tcore*)(&node->value); //filter node data
+	const trec* const rc = (trec*) *((char**)buf); //record data
 	trec hord; //Host byte order converted value
 
 	//Get this shit going fist integer then string etc...
