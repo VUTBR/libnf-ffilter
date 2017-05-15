@@ -150,10 +150,11 @@ typedef enum {
 typedef enum {
 	FF_OPTS_NONE = 0,
 	FF_OPTS_FLAGS = 0x01,		/**< Item is of flag type, this change behaviour when no operator is set to bit compare */
-	FF_OPTS_MPLS_LABEL = 0x06,
+	FF_OPTS_MPLS_LABEL = 0x08,
 	FF_OPTS_MPLS_EOS = 0x04,
 	FF_OPTS_MPLS_EXP = 0x02,
-	FF_OPTS_CONST = 0x08,
+	FF_OPTS_CONST = 0x10,
+
 } ff_opts_t;
 
 

@@ -111,12 +111,15 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 				if(info->n <11) {
 					fl->mpls.label = info->n;
 					return FFAT_EQ_MLX;
-				} else if (info->n) {
-					return FFAT_ERR;
 				}
+				//return FFAT_EQ_ML; //Nuance ... any label or label on top ?
 			} else if (info->options & FF_OPTS_MPLS_EXP) {
-				return FFAT_EQ_MEX;
-			} else if (info->options & FF_OPTS_MPLS_EXP) {
+				if(info->n <11) {
+					fl->mpls.label = info->n;
+					return FFAT_EQ_MEX;
+				}
+				return FFAT_ERR;
+			} else if (info->options & FF_OPTS_MPLS_EOS) {
 				return FFAT_EQ_MES;
 			}
 			return FFAT_EQ_ML;
@@ -143,6 +146,26 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 		case FF_TYPE_UNSIGNED_BIG: return FFAT_GT_UIBE;
 
 		case FF_TYPE_DOUBLE: return FFAT_GT_RE;
+
+		case FF_TYPE_MPLS:
+			if (info->options & FF_OPTS_MPLS_LABEL) {
+				if(info->n <11) {
+					fl->mpls.label = info->n;
+					return FFAT_GT_MLX;
+				}
+				return FFAT_ERR;
+				//return FFAT_GT_ML; //Nuance ... any label or label on top ?
+			} else if (info->options & FF_OPTS_MPLS_EXP) {
+				if(info->n <11) {
+					fl->mpls.label = info->n;
+					return FFAT_GT_MEX;
+				}
+				return FFAT_ERR;
+			} else if (info->options & FF_OPTS_MPLS_EOS) {
+				return FFAT_GT_MES;
+			}
+			//return FFAT_GT_ML; //Forbid compare </> on any label
+			return FFAT_ERR;
 		default:;
 		}
 	else if (op == FF_OP_LT) {
@@ -167,6 +190,27 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 		case FF_TYPE_UNSIGNED_BIG: return FFAT_LT_UIBE;
 
 		case FF_TYPE_DOUBLE: return FFAT_LT_RE;
+		case FF_TYPE_MPLS:
+			if (info->options & FF_OPTS_MPLS_LABEL) {
+				if(info->n <11) {
+					fl->mpls.label = info->n;
+					return FFAT_LT_MLX;
+				} else if (info->n) {
+					return FFAT_ERR;
+					//return FFAT_LT_ML; //Nuance ... any label or label on top ?
+				}
+			} else if (info->options & FF_OPTS_MPLS_EXP) {
+				if(info->n <11) {
+					fl->mpls.label = info->n;
+					return FFAT_LT_MEX;
+				}
+				return FFAT_ERR;
+
+			} else if (info->options & FF_OPTS_MPLS_EOS) {
+				return FFAT_LT_MES;
+			}
+			//return FFAT_LT_ML; //Forbid compare </> on any label
+			return FFAT_ERR;
 		default:;
 		}
 	}
@@ -190,13 +234,29 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 		case FF_TYPE_UNSIGNED_BIG: return FFAT_IS_UIBE;
 
 		case FF_TYPE_STRING: return FFAT_IS_STR;
+
+		case FF_TYPE_MPLS:
+			if (info->options & FF_OPTS_MPLS_LABEL) {
+				if(info->n <11) {
+					fl->mpls.label = info->n;
+					return FFAT_IS_MLX;
+				}
+				return FFAT_ERR;
+				//return FFAT_EQ_ML; //Nuance ... any label or label on top ?
+			} else if (info->options & FF_OPTS_MPLS_EXP) {
+				if(info->n <11) {
+					fl->mpls.label = info->n;
+					return FFAT_IS_MEX;
+				}
+			}
+			//return FFAT_IS_ML; //Forbid compare </> on any label
+			return FFAT_ERR;
 		default:;
 		}
 	} else if (op == FF_OP_IN) {
 		return FFAT_IN;
 	}
 
-	//Set some kind of error
 	return FFAT_ERR;
 }
 
@@ -274,7 +334,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_EQ_ADP:
 	case FFAT_EQ_AD6:
 	case FFAT_EQ_AD4:
-		if (size == 4) { //realign
+		if (size == 4) { //realign to 16B
 			memset(&hord.ip, 0, sizeof(ff_ip_t));
 			hord.ip.data[3] = rc->ip.data[0];
 			rc = &hord;
@@ -388,7 +448,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_EQ_STR:
 		return !strncmp(&rc->str, fl->str, node->vsize);
 	case FFAT_IS_STR:
-		return !strcasecmp(&rc->str, fl->str); //Make it safe
+		return strcasestr(&rc->str, fl->str) != NULL; //Make it safe
 
 	case FFAT_EQ_MAC:
 		return !memcmp(&rc->ui, &fl->ui, sizeof(ff_mac_t));
@@ -400,69 +460,70 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_EQ_ADP:   //Prefix eval
 		res = 1;
 		for (x = 0; x < 4; x++)
-			res &= (rc->ip.data[x] & fl->net->mask.data[x])
-			       == fl->net->ip.data[x];
+			res &= ((rc->ip.data[x] & fl->net->mask.data[x])
+			       == fl->net->ip.data[x]);
 		return res;
 
-		//TODO: fix validation, fix overstepping mpls
+	//TODO: fix validation, fix overstepping mpls
+	//This type is used only of no options are set and EQ operator is used
 	case FFAT_EQ_ML:
 		res = 0;
 		for (x=0; x < 10; x++) {
 			res = fl->ui4 == rc->mpls.id[x].label;
-			if (res) break;
+			if (res || rc->mpls.id[x].eos) break;
 		}
 		return res;
-
+	//Dead
 	case FFAT_GT_ML:
 		res = 0;
 		for (x=0; x < 10; x++) {
 			res = fl->ui4 < rc->mpls.id[x].label;
-			if (res) break;
+			if (res || rc->mpls.id[x].eos) break;
 		}
 		return res;
-
+	//Dead
 	case FFAT_LT_ML:
 		res = 0;
 		for (x=0; x < 10; x++) {
 			res = fl->ui4 > rc->mpls.id[x].label;
-			if (res) break;
+			if (res || rc->mpls.id[x].eos) break;
 		}
 		return res;
 
 	case FFAT_EQ_MLX:
-		return fl->mpls.val == rc->mpls.id[fl->mpls.label-1].label;
+		return fl->mpls.val == rc->mpls.id[fl->mpls.label].label;
 	case FFAT_GT_MLX:
-		return fl->mpls.val < rc->mpls.id[fl->mpls.label-1].label;
+		return fl->mpls.val < rc->mpls.id[fl->mpls.label].label;
 	case FFAT_LT_MLX:
-		return fl->mpls.val > rc->mpls.id[fl->mpls.label-1].label;
+		return fl->mpls.val > rc->mpls.id[fl->mpls.label].label;
 
 	case FFAT_EQ_MEX:
-		return fl->mpls.val == rc->mpls.id[fl->mpls.label-1].exp;
+		return fl->mpls.val == rc->mpls.id[fl->mpls.label].exp;
 	case FFAT_GT_MEX:
-		return fl->mpls.val < rc->mpls.id[fl->mpls.label-1].exp;
+		return fl->mpls.val < rc->mpls.id[fl->mpls.label].exp;
 	case FFAT_LT_MEX:
-		return fl->mpls.val > rc->mpls.id[fl->mpls.label-1].exp;
+		return fl->mpls.val > rc->mpls.id[fl->mpls.label].exp;
 	case FFAT_IS_MEX:
-		return fl->mpls.val == (fl->mpls.val & rc->mpls.id[fl->mpls.label-1].exp);
+		return fl->mpls.val == (fl->mpls.val & rc->mpls.id[fl->mpls.label].exp);
 
 	case FFAT_EQ_MES:
 		for (x = 0; x < 10; x++)
-			if (!rc->mpls.id[x].eos) {
-				continue;
+			if (rc->mpls.id[x].eos) {
+				break;
 			}
 		return (fl->mpls.val == x+1);
 
 	case FFAT_GT_MES:
 		for (x = 0; x < 10; x++)
-			if (!rc->mpls.id[x].eos) {
-				continue;
+			if (rc->mpls.id[x].eos) {
+				break;
 			}
 		return (fl->mpls.val < x+1);
 
 	case FFAT_LT_MES:
 		for (x = 0; x < 10; x++)
-			if (!rc->mpls.id[x].eos) {
-				continue;
+			if (rc->mpls.id[x].eos) {
+				break;
 			}
 		return (fl->mpls.val > x+1);
 

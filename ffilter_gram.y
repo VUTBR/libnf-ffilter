@@ -57,7 +57,7 @@
 %token <string> BAD_TOKEN
 
 %type <t_uint> cmp
-%type <string> field value string
+%type <string> field value string consistent_val
 %type <node> expr filter
 %type <node> list
 
@@ -86,9 +86,12 @@ string:
 	| STRING            { strncpy($$, $1, FF_MAX_STRING - 1); }
 
 value:
-	string              { strncpy($$, $1, FF_MAX_STRING - 1); }
+	consistent_val      { strncpy($$, $1, FF_MAX_STRING - 1); }
 	| string string     { snprintf($$, FF_MAX_STRING - 1, "%s %s", $1, $2); }
-	| QUOTED            { $$[strlen($$)-1] = 0; snprintf($$, FF_MAX_STRING - 1, "%s", &$1[1]); /*Dequote*/}
+
+consistent_val:
+	string              { strncpy($$, $1, FF_MAX_STRING - 1); }
+	| QUOTED            { $1[strlen($1)-1] = 0; snprintf($$, FF_MAX_STRING - 1, "%s", &$1[1]); /*Dequote*/}
 	;
 
 expr:
@@ -104,9 +107,9 @@ expr:
 	;
 
 list:
-	string ',' list { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $3); if ($$ == NULL) { YYABORT; } }
-	| string list    { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $2); if ($$ == NULL) { YYABORT; } }      
-	| string ']'    { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
+	consistent_val ',' list { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $3); if ($$ == NULL) { YYABORT; } }
+	| consistent_val list    { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, $2); if ($$ == NULL) { YYABORT; } }
+	| consistent_val ']'    { $$ = ff_new_mval(scanner, filter, $1, FF_OP_EQ, NULL); if ($$ == NULL) { YYABORT; } }
 	;
 
 cmp:

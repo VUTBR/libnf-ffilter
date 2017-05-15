@@ -191,6 +191,7 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 {
 	struct mock_rec *trec = (struct mock_rec*)rec;
 
+
 	char *data;
 
 	switch(extid.index) {
@@ -254,6 +255,7 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 	}
 
 	*((char**)buf) = data;
+
 	return FF_OK;
 }
 
@@ -557,17 +559,25 @@ TEST_F(filter_types_test, ip_addr)
 	fillIP("192.168.0.230");
 	EXPECT_TRUE(eval(&rec));
 
+	//Mixed types in KW - exact and prefix
 	ASSERT_EQ(FF_OK, init("addr in [192.168.0.1 10.10/16 172.16.8/24]"));
 	fillIP("10.10.10.1");
 	EXPECT_TRUE(eval(&rec));
 	fillIP("172.16.9.23");
 	EXPECT_FALSE(eval(&rec));
 
-	EXPECT_EQ(FF_OK, init("addr in [ 192.168.0.1 255.255.255.0 ]"));
+	//Unified
+	ASSERT_EQ(FF_OK, init("addr in [192.168/16 10.10/16 172.16.8/24]"));
+	fillIP("10.10.10.1");
+	EXPECT_TRUE(eval(&rec));
+	fillIP("172.16.9.23");
+	EXPECT_FALSE(eval(&rec));
+
+	EXPECT_EQ(FF_OK, init("addr in [ \"192.168.0.1 255.255.255.0\" ]"));
 	fillIP("192.168.0.240");
 	EXPECT_FALSE(eval(&rec));
 	fillIP("255.255.255.0");
-	EXPECT_TRUE(eval(&rec));
+	EXPECT_FALSE(eval(&rec));
 
 	ASSERT_EQ(FF_OK, init("addr 2a02:26f0:64::170e:5cf7"));
 	fillIP("2a02:26f0:64::170e:5cf7");
@@ -594,13 +604,15 @@ TEST_F(filter_types_test, ip_addr)
 	fillIP("fe80::e6f8:9cff:fedc:5b77");
 	EXPECT_TRUE(eval(&rec));
 
+	EXPECT_EQ(FF_OK, init("addr 192.168.0.1 255.255.240.240"));
+	fillIP("192.168.16.17");
+	EXPECT_FALSE(eval(&rec));
 
 	//Negative
 	EXPECT_NE(FF_OK, init("addr 194/11"));
 	EXPECT_NE(FF_OK, init("addr 323.123.13.12"));
 	EXPECT_NE(FF_OK, init("addr c3.12.a3.FF"));
 	EXPECT_NE(FF_OK, init("addr 65535"));
-	EXPECT_NE(FF_OK, init("addr 192.168.0.1 255.255.240.240"));
 	EXPECT_NE(FF_OK, init("addr 256/4"));
 	EXPECT_NE(FF_OK, init("addr www.google.com"));
 	EXPECT_NE(FF_OK, init("addr 2008:608::0 /32"));
@@ -791,10 +803,10 @@ TEST_F(filter_types_test, mpls_Eos)
 	EXPECT_TRUE(eval(&rec));
 
 	EXPECT_EQ(FF_OK, init("mplsEos in [10 11]"));
+	EXPECT_EQ(FF_OK, init("mplsEos > 10"));
+	EXPECT_EQ(FF_OK, init("mplsEos < 10"));
 
 	//Neg for invalid operators
-	EXPECT_NE(FF_OK, init("mplsEos > 10"));
-	EXPECT_NE(FF_OK, init("mplsEos < 10"));
 
 	EXPECT_NE(FF_OK, init("mplsEos & 10"));
 	EXPECT_NE(FF_OK, init("mplsEos invalid-input"));
@@ -831,12 +843,12 @@ TEST_F(filter_types_test, mpls_Exp)
 	EXPECT_FALSE(eval(&rec));
 
 	EXPECT_EQ(FF_OK, init("mplsExp in [10 11]"));
+	EXPECT_EQ(FF_OK, init("mplsExp > 10"));
+	EXPECT_EQ(FF_OK, init("mplsExp < 10"));
+
+	EXPECT_EQ(FF_OK, init("mplsExp & 10"));
 
 	//Negative for invalid operators
-	EXPECT_NE(FF_OK, init("mplsExp > 10"));
-	EXPECT_NE(FF_OK, init("mplsExp < 10"));
-
-	EXPECT_NE(FF_OK, init("mplsExp & 10"));
 	EXPECT_NE(FF_OK, init("mplsExp invalid-input"));
 }
 

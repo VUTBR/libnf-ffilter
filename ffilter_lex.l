@@ -57,7 +57,7 @@ exist           { return EXIST; }
 "="|"=="|eq		{ return EQ; }
 ">"|gt			{ return GT; }
 "<"|lt			{ return LT; }
-"&"			    { return ISSET; }
+"&"|like	    { return ISSET; }
 
 "("|")"|"["|"]"|"," { return yytext[0]; }
 

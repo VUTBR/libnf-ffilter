@@ -52,6 +52,8 @@ const char* ff_type_str[] = {
 		[FF_TYPE_ADDR] = "ip address",
 		[FF_TYPE_MAC] = "mac address",
 		[FF_TYPE_STRING] = "string",
+		[FF_TYPE_MPLS] = "mpls labels"
+
 };
 
 /**
