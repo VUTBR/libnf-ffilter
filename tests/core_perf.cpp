@@ -462,7 +462,7 @@ TEST_F(filter_perf_test, leaves_perf)
 		*x = rand();
 
 	clock_t t;
-	printf("\n Set, Nodes, duration sec, perfermance records/sec, matches");
+	printf("\n Set, Nodes, duration sec, performance records/sec, matches");
 	while(!feof(filters)) {
 		set++;
 
@@ -472,9 +472,9 @@ TEST_F(filter_perf_test, leaves_perf)
 		fgets(&program[0], sizeof(program), filters);
 
 		if(init(&program[0])!=FF_OK) {
-			fprintf(stderr, "%s", &program[0]);
+			fprintf(stderr, "Can not init filter '%s'\n", &program[0]);
 			ff_error(filter, &program[0], PLEN);
-			fprintf(stderr, ": Failed: %s\n", &program[0]);
+			fprintf(stderr, "%s\n", &program[0]);
 			continue;
 		}
 

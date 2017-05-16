@@ -1,0 +1,8 @@
+Popis získania zúborov .out s výsledkami vykonnostných testov
+Pokiaľ sa v tabuľke vyskytuje viacero vzoriek z rovnakým odhadovaným počtom uzlov, výsledky Flows/sec su priemerované vo výslednej sade. 
+
+core.out - získané spustením testovacieho programu performance. 
+lnf.out - spustenie programu lnf_ex03_coreperf -r <subor_nfdump_záznamov> -1 perf-test.in -P
+nf.out - spustenie programu lnf_ex03_coreperf -r <subor_nfdump_záznamov> -1 perf-test.in -P -n
+
+Na vytovrenie automatického skriptu neostal čas. 
