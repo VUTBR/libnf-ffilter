@@ -40,8 +40,8 @@ void yyerror(yyscan_t yyscanner, ff_t *filter, char *);
 
 /* conversion from string to numeric/bit value */
 int64_t get_unit(char *unit);
-int64_t strtoll_unit(char *num, char**endptr);
-uint64_t strtoull_unit(char *num, char**endptr);
+int64_t strtoll_unit(char *num, char**endptr, int *err);
+uint64_t strtoull_unit(char *num, char**endptr, int *err);
 
 int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsize);
 int str_to_int(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsize);

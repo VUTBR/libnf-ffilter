@@ -81,40 +81,63 @@ int64_t get_unit(char *unit)
 }
 
 /**
- * \brief Function adds support for k/M/G/T/E suffixes to strtoll
+ * \brief Function adds support for k/M/G suffixes to strtoll
  * \param[in] valstr Literal number
  * \param endptr Place to store an address where conversion finised
  */
-uint64_t strtoull_unit(char *valstr, char**endptr)
+uint64_t strtoull_unit(char *valstr, char**endptr, int* err)
 {
 	uint64_t tmp64;
 	uint64_t mult = 0;
 
 	//Base 0 - given the string 0x is base 16 0x0 is 8 and no prefix is base 10
+	errno = 0;
+	if (valstr[0] == '-') { *err = EINVAL; }
 	tmp64 = strtoull(valstr, endptr, 0);
+        if (errno != 0) {
+            *err = errno;
+            *endptr = valstr;
+            return 0;
+        }
+
 	if (!**endptr) {
-		return tmp64;
+                return tmp64;
 	}
 	/* Allow one whitespace */
 	if (*(*endptr) == ' ') {
 		(*endptr)++;
 	}
 	mult = get_unit(*endptr);
-		if (mult != 0) {
-			/*Move conversion end potinter by one*/
-			*endptr = (*endptr + 1);
-		} else { endptr--; }
+	if (mult != 0) {
+		/*Move conversion end potinter by one*/
+		*endptr = (*endptr + 1);
+	} else { endptr--;}
+
+
+	if (mult != 0) {
+		if (((tmp64 * mult) / mult) != tmp64) {
+			*err = ERANGE;
+		}
+	}
+
 	return tmp64*mult;
 }
 
-int64_t strtoll_unit(char *valstr, char**endptr)
+int64_t strtoll_unit(char *valstr, char**endptr, int* err)
 {
 	int64_t tmp64;
 	int64_t mult = 0;
 
 	//Base 0 - given the string 0x is base 16 0x0 is 8 and no prefix is base 10
-	tmp64 = strtoll(valstr, endptr, 0);
-	if (!**endptr) {
+        errno = 0;
+        tmp64 = strtoll(valstr, endptr, 0);
+        if (errno != 0) {
+            *err = errno;
+            *endptr = valstr;
+            return 0;
+        }
+
+        if (!**endptr) {
 		return tmp64;
 	}
 	/* Allow one whitespace */
@@ -126,6 +149,13 @@ int64_t strtoll_unit(char *valstr, char**endptr)
 			/*Move conversion end potinter by one*/
 			*endptr = (*endptr + 1);
 		} else { endptr--; }
+
+	if (mult != 0) {
+		if (((tmp64 * mult) / mult) != tmp64) {
+			*err = ERANGE;
+		}
+	}
+
 	return tmp64*mult;
 }
 
@@ -135,9 +165,17 @@ int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsi
 {
 	uint64_t tmp64;
 	void *ptr;
+        int err=0;
 
 	char* endptr;
-	tmp64 = strtoull_unit(str, &endptr);
+        tmp64 = strtoull_unit(str, &endptr, &err);
+        if (err != 0) {
+            if (err == ERANGE) {
+                ff_set_error(filter, "Conversion failed, number \"%s\" out of range", str);
+            } else if (err == EINVAL)
+                ff_set_error(filter, "Conversion failed, bad characters in \"%s\"", str);
+            return 1;
+        }
 	if (*endptr){
 		return 1;
 	}
@@ -155,7 +193,7 @@ int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsi
 		tmp64 = (uint16_t)tmp64;
 		break;
 	case FF_TYPE_UINT8:
-		*vsize = sizeof(uint8_t);
+                *vsize = sizeof(uint8_t);
 		tmp64 = (uint8_t)tmp64;
 		break;
 	default: return 1;
@@ -181,10 +219,18 @@ int str_to_int(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsiz
 
 	int64_t tmp64;
 	void *ptr;
+	int err;
 
 	char *endptr;
-	tmp64 = strtoll_unit(str, &endptr);
-	if (*endptr){
+	tmp64 = strtoll_unit(str, &endptr, &err);
+        if (err != 0) {
+            if (err == ERANGE) {
+                ff_set_error(filter, "Conversion failed, number \"%s\" out of range", str);
+            } else if (err == EINVAL)
+                ff_set_error(filter, "Conversion failed, bad characters in \"%s\"", str);
+            return 1;
+        }
+        if (*endptr){
 		return 1;
 	}
 
