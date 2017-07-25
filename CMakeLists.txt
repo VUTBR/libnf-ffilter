@@ -95,7 +95,7 @@ add_executable(str_convertors tests/ipx_filter_convertors.cpp)
 target_link_libraries(str_convertors
         nf_filter
         gtest_main)
-add_test(NAME str_convertors_test COMMAND str_convertors)
+#add_test(NAME str_convertors_test COMMAND str_convertors)
 
 add_test(NAME data_types_prof_test COMMAND valgrind --tool=callgrind data_types)
 

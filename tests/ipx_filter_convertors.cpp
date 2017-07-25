@@ -225,6 +225,7 @@ TEST_F(str_to_number_test, unsigned_large_number_trimm) {
 /**
  * Max range check for signed integers
  */
+ //
 TEST_F(str_to_number_test, signed_valid_max_range){
 
 	//Check max range numbers

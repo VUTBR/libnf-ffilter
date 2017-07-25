@@ -8,66 +8,10 @@
 #include <string.h>
 #include <stdlib.h>
 
-/**
- * \brief Optimize memory utilization in node
- * Data with max size >= 8B are saved directly to node,
- * vsize is set to 0 (to prevent invalid free)
- * Rest is accessible via pointer
- * \param node to optimize
- */
-void ff_space_dynamic(ff_node_t* node)
+
+ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, tcore* data, ff_lvalue_t* info)
 {
-	char* tmp = NULL;
-	switch (node->type) {
-
-	case FF_TYPE_TIMESTAMP_BIG:
-	case FF_TYPE_TIMESTAMP:
-	case FF_TYPE_UNSIGNED_BIG:
-	case FF_TYPE_UNSIGNED:
-	case FF_TYPE_SIGNED_BIG:
-	case FF_TYPE_SIGNED:
-	case FF_TYPE_UINT64:
-	case FF_TYPE_UINT32:
-	case FF_TYPE_UINT16:
-	case FF_TYPE_UINT8:
-	case FF_TYPE_INT64:
-	case FF_TYPE_INT32:
-	case FF_TYPE_INT16:
-	case FF_TYPE_INT8:
-		tmp = node->value;
-		memcpy(&node->value, tmp, sizeof(uint64_t));
-		node->vsize = 0; //not allocated;
-		free(tmp);
-		break;
-
-	case FF_TYPE_DOUBLE:
-		tmp = node->value;
-		memcpy(&node->value, tmp, sizeof(double));
-		node->vsize = 0; //not allocated;
-		free(tmp);
-		break;
-
-	case FF_TYPE_MPLS:
-		tmp = node->value;
-		memcpy(&node->value, tmp, sizeof(uint32_t));
-		memset(&node->value+4, 0, sizeof(uint32_t));
-		node->vsize = 0; //not allocated;
-		free(tmp);
-		break;
-
-	case FF_TYPE_MAC:
-		tmp = node->value;
-		memcpy(&node->value, tmp, sizeof(ff_mac_t));
-		node->vsize = 0; //not allocated;
-		free(tmp);
-		break;
-	default: ;
-	}
-}
-
-ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* info)
-{
-	tcore* fl = (tcore*) &data;
+	tcore* fl = data;
 
 	if (op == FF_OP_EQ)
 		switch(type) {
@@ -94,16 +38,16 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 		case FF_TYPE_MAC: return FFAT_EQ_MAC;
 
 		case FF_TYPE_ADDR:
-			if (fl->net->ver == 4 && fl->net->mask.data[3] == 0) {
+			if (fl->net.ver == 4 && fl->net.mask.data[3] == 0) {
 				return FFAT_EQ_AD4;
-			} else if (fl->net->ver == 6) {
-				if (fl->net->mask.data[0] == 0 &&
-				    fl->net->mask.data[1] == 0 &&
-					fl->net->mask.data[2] == 0 &&
-					fl->net->mask.data[3] == 0)
+			} else if (fl->net.ver == 6) {
+				if (fl->net.mask.data[0] == 0 &&
+				    fl->net.mask.data[1] == 0 &&
+					fl->net.mask.data[2] == 0 &&
+					fl->net.mask.data[3] == 0)
 				return FFAT_EQ_AD6;
 			}
-			//Prefix compare
+			// Prefix compare
 			return FFAT_EQ_ADP;
 
 		case FF_TYPE_MPLS:
@@ -112,9 +56,9 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 					fl->mpls.label = info->n;
 					return FFAT_EQ_MLX;
 				}
-				//return FFAT_EQ_ML; //Nuance ... any label or label on top ?
+				// return FFAT_EQ_ML; //Nuance ... any label or label on top ?
 			} else if (info->options & FF_OPTS_MPLS_EXP) {
-				if(info->n <11) {
+				if(info->n < 11) {
 					fl->mpls.label = info->n;
 					return FFAT_EQ_MEX;
 				}
@@ -149,14 +93,14 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 
 		case FF_TYPE_MPLS:
 			if (info->options & FF_OPTS_MPLS_LABEL) {
-				if(info->n <11) {
+				if(info->n < 11) {
 					fl->mpls.label = info->n;
 					return FFAT_GT_MLX;
 				}
 				return FFAT_ERR;
 				//return FFAT_GT_ML; //Nuance ... any label or label on top ?
 			} else if (info->options & FF_OPTS_MPLS_EXP) {
-				if(info->n <11) {
+				if(info->n < 11) {
 					fl->mpls.label = info->n;
 					return FFAT_GT_MEX;
 				}
@@ -192,7 +136,7 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 		case FF_TYPE_DOUBLE: return FFAT_LT_RE;
 		case FF_TYPE_MPLS:
 			if (info->options & FF_OPTS_MPLS_LABEL) {
-				if(info->n <11) {
+				if(info->n < 11) {
 					fl->mpls.label = info->n;
 					return FFAT_LT_MLX;
 				} else if (info->n) {
@@ -200,7 +144,7 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 					//return FFAT_LT_ML; //Nuance ... any label or label on top ?
 				}
 			} else if (info->options & FF_OPTS_MPLS_EXP) {
-				if(info->n <11) {
+				if(info->n < 11) {
 					fl->mpls.label = info->n;
 					return FFAT_LT_MEX;
 				}
@@ -237,21 +181,21 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 
 		case FF_TYPE_MPLS:
 			if (info->options & FF_OPTS_MPLS_LABEL) {
-				if(info->n <11) {
+				if(info->n < 11) {
 					fl->mpls.label = info->n;
 					return FFAT_IS_MLX;
 				}
 				return FFAT_ERR;
 				//return FFAT_EQ_ML; //Nuance ... any label or label on top ?
 			} else if (info->options & FF_OPTS_MPLS_EXP) {
-				if(info->n <11) {
+				if(info->n < 11) {
 					fl->mpls.label = info->n;
 					return FFAT_IS_MEX;
 				}
 			}
 			//return FFAT_IS_ML; //Forbid compare </> on any label
 			return FFAT_ERR;
-		default:;
+		default: break;
 		}
 	} else if (op == FF_OP_IN) {
 		return FFAT_IN;
@@ -261,7 +205,9 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 }
 
 
-//Big suffix refers to what endiannes expect from data function, note that comparation uses native format of architecture
+/* Big suffix refers to what endiannes expect from data function,
+   note that comparation uses native format of architecture */
+
 /**
  *
  * \param buf contains pointer to data, if data alone are in buffer still, first in buffer is pointer
@@ -271,7 +217,7 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
  */
 int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 {
-	const tcore* const fl = (tcore*)(&node->value); //filter node data
+	const tcore* const fl = node->value; //filter node data
 	const trec* const rc = (trec*) *((char**)buf); //record data
 	trec hord; //Host byte order converted value
 
@@ -330,7 +276,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		break;
 
 
-	/*
+	/* Some pre preprocessing on ip data - not worth doing
 	case FFAT_EQ_ADP:
 	case FFAT_EQ_AD6:
 	case FFAT_EQ_AD4:
@@ -347,7 +293,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	}
 
 
-	//Eval switch
+	// Eval switch
 	switch ((ff_attr_t)node->type) {
 
 	case FFAT_EQ_UIBE:
@@ -456,25 +402,25 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		return rc->real < fl->real;
 
 	case FFAT_EQ_STR:
-		return !strncmp(&rc->str, fl->str, node->vsize);
+		return !strncmp(&rc->str, &fl->str, node->vsize);
 	case FFAT_IS_STR:
-		return strcasestr(&rc->str, fl->str) != NULL; //Make it safe
+		return strcasestr(&rc->str, &fl->str) != NULL; //Make it safe
 
 	case FFAT_EQ_MAC:
 		return !memcmp(&rc->ui, &fl->ui, sizeof(ff_mac_t));
 
 	case FFAT_EQ_AD4:
 		if (size == 4)
-			return (rc->ip.data[0] == fl->net->ip.data[3]);
+			return (rc->ip.data[0] == fl->net.ip.data[3]);
 		return	!rc->ip.data[0] &&
 				!rc->net.ip.data[1] &&
 				!rc->net.ip.data[2] &&
-		        (rc->ip.data[0] == fl->net->ip.data[3]);
+		        (rc->ip.data[0] == fl->net.ip.data[3]);
 
 	case FFAT_EQ_AD6:
 		if (size == 4)
 			return 0;
-		return !memcmp(&rc->ip, fl->ip->data, sizeof(ff_ip_t)); //Exact compare
+		return !memcmp(&rc->ip, fl->ip.data, sizeof(ff_ip_t)); //Exact compare
 
 	case FFAT_EQ_ADP:    //Prefix eval
 		if (size == 4) { //realign to 16B
@@ -483,38 +429,38 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 			res = 1;
 			for (x = 0; x < 4; x++)
-				res &= ((hord.ip.data[x] & fl->net->mask.data[x])
-				        == fl->net->ip.data[x]);
+				res &= ((hord.ip.data[x] & fl->net.mask.data[x])
+				        == fl->net.ip.data[x]);
 			return res;
 		}
 
 		res = 1;
 		for (x = 0; x < 4; x++)
-			res &= ((rc->ip.data[x] & fl->net->mask.data[x])
-			       == fl->net->ip.data[x]);
+			res &= ((rc->ip.data[x] & fl->net.mask.data[x])
+			       == fl->net.ip.data[x]);
 		return res;
 
-	//This type is used only of no options are set and EQ operator is used
+	// This type is used only of no options are set and EQ operator is used
 	case FFAT_EQ_ML:
 		res = 0;
 		for (x=0; x < 10; x++) {
-			res = fl->ui4 == rc->mpls.id[x].label;
+			res = fl->mpls.val == rc->mpls.id[x].label;
 			if (res || rc->mpls.id[x].eos) break;
 		}
 		return res;
-	//Dead
+	// Dead
 	case FFAT_GT_ML:
 		res = 0;
 		for (x=0; x < 10; x++) {
-			res = fl->ui4 < rc->mpls.id[x].label;
+			res = fl->mpls.val < rc->mpls.id[x].label;
 			if (res || rc->mpls.id[x].eos) break;
 		}
 		return res;
-	//Dead
+	// Dead
 	case FFAT_LT_ML:
 		res = 0;
 		for (x=0; x < 10; x++) {
-			res = fl->ui4 > rc->mpls.id[x].label;
+			res = fl->mpls.val > rc->mpls.id[x].label;
 			if (res || rc->mpls.id[x].eos) break;
 		}
 		return res;

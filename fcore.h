@@ -11,15 +11,15 @@
  * \brief Enumerator for validation of type, operator combinations
  * 1 Dim switch uses this to tidy up a code and utilize possible optimizations
  * EQ/GT/LT/IS are operators,
- * I/UI - integers followed by size in bytes,
- * 	no size means one of 1/2/4/8 bytes, BE means big endian variant expected from wrapper
+ * I/UI - integers followed by size in bytes, no size means one of 1/2/4/8 bytes,
+ *        BE means big endian variant expected from wrapper
  * ADP - addres with prefix
  * AD4 - v4 address
  * AD6 - v6 address
  * RE - double
  * TS - timestamp which is equivalent to UI/UIB only string convertor differs
  * M__ - mpls operators L - label one of 10, LX - label x is requested,
- * 	EX - exp bits on top of stack, ES - check which label is top of stack
+ * MEX - exp bits on top of stack, MES - check which label is top of stack
  */
 typedef enum ff_attr_e{
 	FFAT_ERR,
@@ -128,43 +128,10 @@ typedef enum ff_attr_e{
 
 } ff_attr_t;
 
-typedef union ff_core_u {
-	uint64_t ui;
-	uint32_t ui4;
-	uint16_t ui2;
-	uint8_t ui1;
-	int64_t i;
-	int32_t i4;
-	int16_t i2;
-	int8_t i1;
-	double real;
-	ff_mpls_t mpls;
-
-	char* str;
-	ff_net_t* net;
-	ff_ip_t* ip;
-} tcore;
-
-typedef union ff_rec_u {
-	uint64_t ui;
-	uint32_t ui4;
-	uint16_t ui2;
-	uint8_t ui1;
-	int64_t i;
-	int32_t i4;
-	int16_t i2;
-	int8_t i1;
-	double real;
-
-	char str;
-	ff_mpls_stack_t mpls;
-	ff_net_t net;
-	ff_ip_t ip;
-} trec;
 
 void ff_space_dynamic(ff_node_t* node);
 
-ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* info);
+ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, tcore* data, ff_lvalue_t* info);
 
 int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node);
 

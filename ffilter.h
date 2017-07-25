@@ -113,10 +113,22 @@ typedef double ff_double_t;
 typedef char ff_mac_t[8];
 typedef uint64_t ff_timestamp_t;
 
-typedef struct ff_ip_s { uint32_t data[4]; } ff_ip_t; /*!< IPv4/IPv6 address */
-typedef struct ff_net_s { ff_ip_t ip; ff_ip_t mask; int ver; } ff_net_t;
+/// IPv4/IPv6 address
+typedef struct ff_ip_s {
+	uint32_t data[4];
+} ff_ip_t;
 
-typedef struct ff_mpls_s { uint32_t val; uint32_t label; } ff_mpls_t; /*!< In node type for mpls */
+typedef struct ff_net_s {
+	ff_ip_t ip;
+	ff_ip_t mask;
+	int ver;
+} ff_net_t;
+
+/// In node type for mpls
+typedef struct ff_mpls_s {
+	uint32_t val;
+	uint32_t label;
+} ff_mpls_t;
 
 typedef union {
 	//TODO: Test on big-endian machine
@@ -132,7 +144,48 @@ typedef union {
 typedef struct ff_mpls_stack_s { ff_mpls_label_t id[10]; } ff_mpls_stack_t;
 
 /**
- * \typedef ffilter interface return codes
+ * \brief Union used to reinterpret values in node of abstract tree.
+ * For more detail \see ff_node_t member - value.
+ */
+typedef union ff_core_u {
+	uint64_t ui;
+	uint32_t ui4;
+	uint16_t ui2;
+	uint8_t ui1;
+	int64_t i;
+	int32_t i4;
+	int16_t i2;
+	int8_t i1;
+	double real;
+	ff_mpls_t mpls;
+
+	char str;
+	ff_net_t net;
+	ff_ip_t ip;
+} tcore;
+
+/**
+ * \brief Union used to reinterpret data from wrapper, char* is casted to trec*
+ */
+typedef union ff_rec_u {
+	uint64_t ui;
+	uint32_t ui4;
+	uint16_t ui2;
+	uint8_t ui1;
+	int64_t i;
+	int32_t i4;
+	int16_t i2;
+	int8_t i1;
+	double real;
+
+	char str;
+	ff_mpls_stack_t mpls;
+	ff_net_t net;
+	ff_ip_t ip;
+} trec;
+
+/**
+ * \brief ffilter interface return codes
  */
 typedef enum {
 	FF_OK = 0x1,				/**< No error occuried */
@@ -144,7 +197,7 @@ typedef enum {
 } ff_error_t;
 
 /**
- * \typedef ffilter lvalue options
+ * \brief ffilter lvalue options
  *
  */
 typedef enum {
@@ -157,8 +210,7 @@ typedef enum {
 
 } ff_opts_t;
 
-
-/* supported operations */
+// Supported operations
 typedef enum {
 	FF_OP_UNDEF = -1,
 	FF_OP_NOT = 1,
@@ -191,7 +243,6 @@ typedef struct ff_lvalue_s {
 	/** External identification of data field */
 	ff_extern_id_t id[FF_MULTINODE_MAX];
 	/** Extra options that modiflies evaluation of data */
-	//TODO: Clarify purpose, maybe create getters and setters
 	int options;
 	/** 0 for not set */
 	int n;
@@ -202,14 +253,11 @@ typedef struct ff_lvalue_s {
 /* node of syntax tree */
 typedef struct ff_node_s {
 	ff_extern_id_t field;         /* field ID */
-	//TODO: in future use only pointers - do not copy data from wrapper
-	char *value;                  /* buffer allocated for data */
+	tcore *value;                  /* buffer allocated for data */
 	size_t vsize;                 /* size of data in value */
 	//TODO: could be ommited in future if pointer to function to evaluate is used instead
 	int type;                     /* data type for value */
 	ff_oper_t oper;               /* operation */
-	//TODO: get rid of it mpls can have multiple operators, transcoding can be done via lvalue
-	int opts;                     /* mpls stack data selector label, exp or eos */
 
 	//TODO: transform to heap data structure - no pointers
 	struct ff_node_s *left;

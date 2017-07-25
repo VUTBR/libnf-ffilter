@@ -35,13 +35,13 @@ YY_BUFFER_STATE ff_yy_scan_string(const char *str, yyscan_t yyscanner);
 int ff_yyparse(yyscan_t yyscanner, ff_t *filter);
 //int lnf_filter_yylex(YYSTYPE *yylval, void *scanner);
 
-/* error function for scanner */
+// error function for scanner
 void yyerror(yyscan_t yyscanner, ff_t *filter, char *);
 
-/* conversion from string to numeric/bit value */
+// conversion from string to numeric/bit value
 int64_t get_unit(char *unit);
-int64_t strtoll_unit(char *num, char**endptr, int *err);
-uint64_t strtoull_unit(char *num, char**endptr, int *err);
+int64_t ff_strtoll(char *num, char**endptr, int *err);
+uint64_t ff_strtoull(char *num, char**endptr, int *err);
 
 int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsize);
 int str_to_int(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsize);
@@ -57,7 +57,7 @@ char* unwrap_ip(char *ip_str, int numbits);
 
 ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t* node);
 
-/* add new node into parse tree */
+// add new node into parse tree
 ff_node_t* ff_duplicate_node(ff_node_t* original);
 ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t oper,  ff_node_t* nextptr);
 ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t oper, char *valstr);
@@ -65,13 +65,13 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
 ff_node_t* ff_branch_node(ff_node_t *node, ff_oper_t oper, ff_lvalue_t* lvalue);
 int ff_oper_eval(char* buf, size_t size, ff_node_t *node);
 
-/* evaluate filter */
+// evaluate filter
 int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec);
 
-/* release memory allocated by nodes */
+// release memory allocated by nodes
 void ff_free_node(ff_node_t* node);
 
-/* lex bison prototypes */
+// lex bison prototypes
 int ff2_get_column(yyscan_t yyscanner);
 void ff2_set_column(int , yyscan_t);
 int ff2_lex_init(yyscan_t *yyscanner);
