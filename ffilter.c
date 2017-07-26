@@ -1032,9 +1032,10 @@ ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t o
 /* return 0 - false; 1 - true; -1 - error  */
 int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec)
 {
+#define EVAL_BUF_MAX 128
     // Since function is reentrant, alocate own buffer
-	char buf[sizeof(ff_rec_t)];
-    size_t size = sizeof(ff_rec_t);
+	char buf[EVAL_BUF_MAX];
+    size_t size = EVAL_BUF_MAX;
     // Data from callback can be returned in provided buffer or from adapter
     char* data = &buf[0];
 
