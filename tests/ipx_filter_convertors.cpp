@@ -1,6 +1,7 @@
 //
 // Created by istoffa on 17.8.2016.
 //
+
 #include <gtest/gtest.h>
 #include <cstdint>
 #include <iostream>

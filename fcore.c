@@ -1,6 +1,29 @@
-//
-// Created by istoffa on 5/11/17.
-//
+/*
+
+ Copyright (c) 2015-2017, Imrich Stoffa
+
+ This file is part of libnf.net project.
+
+ Libnf is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ Libnf is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with libnf.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+
+/**
+ * \file fcore.c
+ * \brief netflow fiter tree (abstract syntax tree) evaluation function and structures
+ */
 
 #include "fcore.h"
 #include "ffilter.h"
@@ -465,22 +488,25 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		}
 		return res;
 
+    // To eval specific label
 	case FFAT_EQ_MLX:
-		return fl->mpls.val == rc->mpls.id[fl->mpls.label].label;
+		return fl->mpls.val == rc->mpls.id[fl->mpls.label - 1].label;
 	case FFAT_GT_MLX:
-		return fl->mpls.val < rc->mpls.id[fl->mpls.label].label;
+		return fl->mpls.val < rc->mpls.id[fl->mpls.label - 1].label;
 	case FFAT_LT_MLX:
-		return fl->mpls.val > rc->mpls.id[fl->mpls.label].label;
+		return fl->mpls.val > rc->mpls.id[fl->mpls.label - 1].label;
 
+    // To eval exp bit of specific label
 	case FFAT_EQ_MEX:
-		return fl->mpls.val == rc->mpls.id[fl->mpls.label].exp;
+		return fl->mpls.val == rc->mpls.id[fl->mpls.label - 1].exp;
 	case FFAT_GT_MEX:
-		return fl->mpls.val < rc->mpls.id[fl->mpls.label].exp;
+		return fl->mpls.val < rc->mpls.id[fl->mpls.label - 1].exp;
 	case FFAT_LT_MEX:
-		return fl->mpls.val > rc->mpls.id[fl->mpls.label].exp;
+		return fl->mpls.val > rc->mpls.id[fl->mpls.label - 1].exp;
 	case FFAT_IS_MEX:
-		return fl->mpls.val == (fl->mpls.val & rc->mpls.id[fl->mpls.label].exp);
+		return fl->mpls.val == (fl->mpls.val & rc->mpls.id[fl->mpls.label - 1].exp);
 
+    // To eval which label is atop of stack EOS bit is set
 	case FFAT_EQ_MES:
 		for (x = 0; x < 10; x++)
 			if (rc->mpls.id[x].eos) {

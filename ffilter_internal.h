@@ -1,3 +1,28 @@
+/*
+
+ Copyright (c) 2015-2017, Imrich Stoffa, Tomas Podermanski
+
+ This file is part of libnf.net project.
+
+ Libnf is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ Libnf is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with libnf.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+/**
+ * \file ffilter_internal.h
+ * \brief netflow fiter private interface for helper functions and abstract syntax tree constructors
+ */
 
 #ifndef _FFILTER_INTERNAL_H
 #define _FFILTER_INTERNAL_H
