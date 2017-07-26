@@ -1,6 +1,30 @@
-//
-// Created by istoffa on 22.2.2017.
-//
+/*
+
+ Copyright (c) 2015-2017, Imrich Stoffa
+
+ This file is part of libnf.net project.
+
+ Libnf is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ Libnf is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with libnf.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+/**
+ * \file ipx_filter_data_types.cpp
+ * \brief Unit test for conversion of string data to ff_val_t and their evaluation
+ * This script provides usage testing of various data types provided by ffilter core
+ * this is usefull to chceck overall state of ffilter.
+ */
 
 #include <gtest/gtest.h>
 #include <arpa/inet.h>
@@ -182,16 +206,15 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
  * Test data func selects data from record based on external identification,
  * which was set by lookup callback \see test_lookup_func
  * @param filter
- * @param rec test_record reference
+ * @param rec   test_record reference
  * @param extid Ident. of field
- * @param buf Selected data are copied here
- * @param size Length of selected data
+ * @param buf   Pointer to data is passed in this variable.
+ * @param size  Length of selected data
  * @return FF_OK on data copied
  */
-ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid, char* buf, size_t *size)
+ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid, char** buf, size_t *size)
 {
 	struct mock_rec *trec = (struct mock_rec*)rec;
-
 
 	char *data;
 
@@ -255,7 +278,7 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 	default : *size = 0; return FF_ERR_OTHER;
 	}
 
-	*((char**)buf) = data;
+	*buf = data;
 
 	return FF_OK;
 }

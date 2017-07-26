@@ -32,9 +32,9 @@
 #include <stdlib.h>
 
 
-ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, tcore* data, ff_lvalue_t* info)
+ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, ff_val_t* data, ff_lvalue_t* info)
 {
-	tcore* fl = data;
+	ff_val_t* fl = data;
 
 	if (op == FF_OP_EQ)
 		switch(type) {
@@ -233,23 +233,23 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, tcore* data, ff_lvalue_t* in
 
 /**
  *
- * \param buf contains pointer to data, if data alone are in buffer still, first in buffer is pointer
+ * \param buf  contains pointer to data, if data alone are in buffer still, first in buffer is pointer
  * \param size nonzero if relevant
  * \param node node to evaluate
- * \return
+ * \return result of eval
  */
 int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 {
-	const tcore* const fl = node->value; //filter node data
-	const trec* const rc = (trec*) *((char**)buf); //record data
-	trec hord; //Host byte order converted value
+	const ff_val_t* const fl = node->value; // filter node data
+	const ff_rec_t* const rc = (ff_rec_t*) buf; // record data
+	ff_rec_t hord; //Host byte order converted value
 
-	//Get this shit going fist integer then string etc...
+	// Get this shit going fist integer then string etc...
 	int res = 0;
 	unsigned int x = 0;
 
-	//Handle variable length types, big endians and so on, pre-copy data
-	//Pre-process switch
+	// Handle variable length types, big endians and so on, pre-copy data
+	// Pre-process switch
 	switch ((ff_attr_t)node->type) {
 
 	case FFAT_EQ_UIBE:
@@ -261,7 +261,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_LT_IBE:
 	case FFAT_IS_IBE:
 
-		hord.ui = 0; //Copy and transform
+		hord.ui = 0; // Copy and transform
 		if (size == 8) {
 			hord.ui = ntohll(rc->ui);
 		} else if (size == 4) {
@@ -284,7 +284,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_LT_I:
 	case FFAT_IS_I:
 
-		hord.ui = 0; //Copy
+		hord.ui = 0; // Copy
 		if (size == 8) {
 			hord.ui = rc->ui;
 		} else if (size == 4) {

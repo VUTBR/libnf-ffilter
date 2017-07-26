@@ -105,7 +105,7 @@ target_link_libraries(data_types
         gtest_main)
 add_test(NAME data_types_test COMMAND data_types)
 
-add_executable(performance tests/core_perf.cpp)
+add_executable(performance tests/ipx_core_perf.cpp)
 target_link_libraries(performance
         nf_filter
         gtest_main)

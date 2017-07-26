@@ -163,7 +163,7 @@ typedef struct ff_mpls_stack_s {
  * \brief Union used to reinterpret values in node of abstract tree.
  * For more detail \see ff_node_t member - value.
  */
-typedef union ff_core_u {
+typedef union ff_val_u {
 	uint64_t ui;
 	uint32_t ui4;
 	uint16_t ui2;
@@ -178,7 +178,7 @@ typedef union ff_core_u {
 	char str;
 	ff_net_t net;
 	ff_ip_t ip;
-} tcore;
+} ff_val_t;
 
 /**
  * \brief Union used to reinterpret data from wrapper, char* is casted to trec*
@@ -198,7 +198,7 @@ typedef union ff_rec_u {
 	ff_mpls_stack_t mpls;
 	ff_net_t net;
 	ff_ip_t ip;
-} trec;
+} ff_rec_t;
 
 /**
  * \brief ffilter interface return codes
@@ -272,7 +272,7 @@ typedef struct ff_lvalue_s {
  */
 typedef struct ff_node_s {
 	ff_extern_id_t field;         /** field ID */
-	tcore *value;                 /** buffer allocated for data */
+	ff_val_t *value;                 /** buffer allocated for data */
 	size_t vsize;                 /** size of data in value */
 	//TODO: could be ommited in future if pointer to function to evaluate is used instead
 	int type;                     /** data type for value */
@@ -310,12 +310,12 @@ typedef ff_error_t (*ff_lookup_func_t) (struct ff_s *filter, const char *fieldst
  * Callback copies data associated with external identification, as set by lookup callback, from evaluated record
  * to buffer and marks length of these data. Structure of record must be known to data function.
  * \param ff_s Filter object
- * \param[in]  record General data pointer to record
- * \param[in]  id     Indentfication of data field in recrod
- * \param[out] buf    Buffer to store retrieved data
- * \param[out] vsize  Length of retrieved data
+ * \param[in]     record General data pointer to record
+ * \param[in]     id     Indentfication of data field in recrod
+ * \param[in/out] buf    in - Pointer to buffer, out - Pointer to buffer with retrieved data
+ * \param[in/out] vsize  in - Size of passed buffer, out - size of valid data in buffer
  */
-typedef ff_error_t (*ff_data_func_t) (struct ff_s*, void *, ff_extern_id_t, char*, size_t *);
+typedef ff_error_t (*ff_data_func_t) (struct ff_s*, void *, ff_extern_id_t, char**, size_t *);
 
 /**
  * Rval_map Callback signature

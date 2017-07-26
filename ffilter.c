@@ -598,10 +598,10 @@ int str_to_timestamp(ff_t *filter, char* str, char** res, size_t *size)
 	return 0;
 }
 
-ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t* node) {
-
-		// determine field type and assign data to lvalue */
-	tcore* tmp;
+ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t* node)
+{
+    // determine field type and assign data to lvalue */
+	ff_val_t* tmp;
 	switch (node->type) {
 	case FF_TYPE_UINT64:
 	case FF_TYPE_UINT32:
@@ -748,7 +748,8 @@ ff_error_t ff_type_validate(yyscan_t *scanner, ff_t *filter, const char *valstr,
 
 /* set error to error buffer */
 /* set error string */
-void ff_set_error(ff_t *filter, char *format, ...) {
+void ff_set_error(ff_t *filter, char *format, ...)
+{
 va_list args;
 
 	va_start(args, format);
@@ -757,7 +758,8 @@ va_list args;
 }
 
 /* get error string */
-const char* ff_error(ff_t *filter, const char *buf, int buflen) {
+const char* ff_error(ff_t *filter, const char *buf, int buflen)
+{
 
 	strncpy((char *)buf, filter->error_str, buflen - 1);
 	return buf;
@@ -771,7 +773,8 @@ const char* ff_error(ff_t *filter, const char *buf, int buflen) {
  * \param[in] lvalue - Info about field
  * \return Root node of new subtree or NULL on error
  */
-ff_node_t* ff_branch_node(ff_node_t *node, ff_oper_t oper, ff_lvalue_t* lvalue) {
+ff_node_t* ff_branch_node(ff_node_t *node, ff_oper_t oper, ff_lvalue_t* lvalue)
+{
 	//TODO: harden against memory faults
 	ff_node_t *dup[FF_MULTINODE_MAX] = {0};
 	//int err = 0;
@@ -804,7 +807,8 @@ ff_node_t* ff_branch_node(ff_node_t *node, ff_oper_t oper, ff_lvalue_t* lvalue) 
 	return dup[0];
 }
 
-ff_node_t* ff_duplicate_node(ff_node_t* original) {
+ff_node_t* ff_duplicate_node(ff_node_t* original)
+{
 
 	ff_node_t *copy, *lc, *rc;
 	lc = rc = NULL;
@@ -851,7 +855,8 @@ ff_node_t* ff_duplicate_node(ff_node_t* original) {
 }
 
 /* Add leaf entry into expr tree */
-ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t oper, char *valstr) {
+ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t oper, char *valstr)
+{
 
 	ff_node_t *node;
 	ff_node_t *retval;
@@ -1001,7 +1006,8 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
 }
 
 /* add new item to list */
-ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t oper, ff_node_t* nptr) {
+ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t oper, ff_node_t* nptr)
+{
 
 	ff_node_t *node;
 
@@ -1024,10 +1030,15 @@ ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t o
 
 /* evaluate node in tree or proces subtree */
 /* return 0 - false; 1 - true; -1 - error  */
-int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec) {
-	char buf[FF_MAX_STRING];
+int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec)
+{
+    // Since function is reentrant, alocate own buffer
+	char buf[sizeof(ff_rec_t)];
+    size_t size = sizeof(ff_rec_t);
+    // Data from callback can be returned in provided buffer or from adapter
+    char* data = &buf[0];
+
 	int left, right, res, exist;
-	size_t size;
 
 	if (node == NULL) {
 		return -1;
@@ -1061,30 +1072,24 @@ int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec) {
 
 	// operations on leaf -> compare values
 	// going to be callback
-	if (filter->options.ff_data_func(filter, rec, node->field, buf, &size) != FF_OK) {
+	if (filter->options.ff_data_func(filter, rec, node->field, &data, &size) != FF_OK) {
 		// ff_set_error(filter, "Can't get data");
 		// On no data mimic zero
-		switch (node->type) {
-		case FF_TYPE_MAC: size = sizeof(ff_mac_t); break;
-		case FF_TYPE_ADDR: size = sizeof(ff_ip_t); break;
-		case FF_TYPE_DOUBLE: size = sizeof(ff_double_t); break;
-		case FF_TYPE_TIMESTAMP: size = sizeof(ff_timestamp_t); break;
-		default: size = node->vsize;
-		}
-		memset(buf, 0, size);
-		// No data found
+		memset(buf, 0, node->vsize);
+        data = buf;
+        size = node->vsize;
 		exist = 0;
 	}
 
 	switch (node->oper) {
-	default: return ff_oper_eval_V2(buf, size, node);
+	default: return ff_oper_eval_V2(data, size, node);
     // Check for presence of item
 	case FF_OP_EXIST: return exist;
 	// Compare against list (right branch is NULL) data retireved once
 	case FF_OP_IN:
 		node = node->right;
 		do {
-			res = ff_oper_eval_V2(buf, size, node);
+			res = ff_oper_eval_V2(data, size, node);
 			node = node->right;
 		 } while (res <= 0 && node);
 		 return res;
