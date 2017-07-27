@@ -272,7 +272,7 @@ typedef struct ff_lvalue_s {
  */
 typedef struct ff_node_s {
 	ff_extern_id_t field;         /** field ID */
-	ff_val_t *value;                 /** buffer allocated for data */
+	char *value;                  /** buffer allocated for data */
 	size_t vsize;                 /** size of data in value */
 	//TODO: could be ommited in future if pointer to function to evaluate is used instead
 	int type;                     /** data type for value */
