@@ -1,11 +1,36 @@
-//
-// Created by istoffa on 22.2.2017.
-//
+/*
+
+ Copyright (c) 2015-2017, Imrich Stoffa
+
+ This file is part of libnf.net project.
+
+ Libnf is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ Libnf is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with libnf.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+/**
+ * \file ipx_filter_data_types.cpp
+ * \brief Unit test for conversion of string data to ff_val_t and their evaluation
+ * This script provides usage testing of various data types provided by ffilter core
+ * this is usefull to chceck overall state of ffilter.
+ */
 
 #include <gtest/gtest.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <time.h>
+#include <malloc.h>
 
 extern "C" {
 #include <ffilter.h>
@@ -181,16 +206,15 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
  * Test data func selects data from record based on external identification,
  * which was set by lookup callback \see test_lookup_func
  * @param filter
- * @param rec test_record reference
+ * @param rec   test_record reference
  * @param extid Ident. of field
- * @param buf Selected data are copied here
- * @param size Length of selected data
+ * @param buf   Pointer to data is passed in this variable.
+ * @param size  Length of selected data
  * @return FF_OK on data copied
  */
-ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid, char* buf, size_t *size)
+ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid, char** buf, size_t *size)
 {
 	struct mock_rec *trec = (struct mock_rec*)rec;
-
 
 	char *data;
 
@@ -254,7 +278,7 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 	default : *size = 0; return FF_ERR_OTHER;
 	}
 
-	*((char**)buf) = data;
+	*buf = data;
 
 	return FF_OK;
 }
@@ -303,8 +327,10 @@ protected:
 	char *buffer;
 
 	virtual void SetUp() {
-		ff_options_init(&test_callbacks); //Prepare structure for callbacks
-		buffer = (char*)malloc(FF_MAX_STRING);	//Alloc extra buffer
+        // Prepare structure for callbacks
+		ff_options_init(&test_callbacks);
+        // Alloc extra buffer
+		buffer = (char*)malloc(FF_MAX_STRING);
 
 		test_callbacks->ff_data_func = test_data_func;
 		test_callbacks->ff_lookup_func = test_lookup_func;
@@ -383,8 +409,8 @@ protected:
 
 
 
-//Left associable, priotrities 1.NEG 2.AND, 3.OR
-//Use brackets to modify
+// Left associable, priotrities 1.NEG 2.AND, 3.OR
+// Use brackets to modify
 TEST_F(filter_types_test, Logic_expressions)
 {
 	ASSERT_EQ(FF_OK, init("srcint 10"));
@@ -400,7 +426,7 @@ TEST_F(filter_types_test, Logic_expressions)
 	fillInt64(3);
 	EXPECT_TRUE(eval(&rec));
 
-	//And precedence
+	// And precedence
 	ASSERT_EQ(FF_OK, init("srcint 10 or message ahoj and addr 192.168.0.1"));
 	fillIP("192.168.0.1");
 	EXPECT_TRUE(eval(&rec));
@@ -417,8 +443,9 @@ TEST_F(filter_types_test, Logic_expressions)
 
 TEST_F(filter_types_test, Multinode_eval)
 {
-	ASSERT_EQ(FF_OK, init("uint 10")); //Init must be successful otherwise there's no point to continue
-	//Value in 1. or 2. field should match
+	// Init must be successful otherwise there's no point to continue
+	ASSERT_EQ(FF_OK, init("uint 10"));
+	// Value in 1. or 2. field should match
 	fillInt64(10);
 	fillInt64_2(0);
 	EXPECT_TRUE(eval(&rec));
@@ -430,7 +457,7 @@ TEST_F(filter_types_test, Multinode_eval)
 	fillInt64(0);
 	fillInt64_2(0);
 	EXPECT_FALSE(eval(&rec)); //None of both matches - should fail
-	//Cleanup is automatic
+	// Cleanup is automatic
 }
 
 TEST_F(filter_types_test, coma_separator_in_list)
@@ -484,7 +511,7 @@ TEST_F(filter_types_test, unsigned_integer) {
 	fillInt64(100);
 	EXPECT_FALSE(eval(&rec));
 
-	//Negative
+	// Negative
 	EXPECT_NE(FF_OK, init("srcuint 18446744073709551616")); // Over max
 
 	EXPECT_NE(FF_OK, init("srcuint -1")); // Negative
@@ -652,8 +679,6 @@ TEST_F(filter_types_test, mac)
 }
 
 
-//Escaping ? not really
-//TODO: define how operators will work
 TEST_F(filter_types_test, string)
 {
 	ASSERT_EQ(FF_OK, init("message Helloworld"));
@@ -724,28 +749,30 @@ TEST_F(filter_types_test, real)
 	fillReal(1.2);
 	EXPECT_FALSE(eval(&rec));
 
-	ASSERT_EQ(FF_OK, init("real in [1.59 -9.87654321e3 0.1e-12]")); //Does this makes sense ?
+	// Does this makes sense ?
+	ASSERT_EQ(FF_OK, init("real in [1.59 -9.87654321e3 0.1e-12]"));
 	fillReal(-9.87654321e3);
 	EXPECT_TRUE(eval(&rec));
 	fillReal(9.86);
 	EXPECT_FALSE(eval(&rec));
 
-	EXPECT_NE(FF_OK, init("real & 3.14")); //Does not makes sense but is compilable
+	// Does not makes sense but is compilable
+	EXPECT_NE(FF_OK, init("real & 5.14"));
 
 	EXPECT_NE(FF_OK, init("real foobar"));
-	EXPECT_NE(FF_OK, init("real 0x2f29835.7e-10")); //seems like this works
+	EXPECT_NE(FF_OK, init("real 0x2f29835.7e-10"));
 	EXPECT_NE(FF_OK, init("real #@!$"));
 	EXPECT_NE(FF_OK, init("real \x01\x10\x13"));
 	EXPECT_NE(FF_OK, init("real in [ 10.1 invalid ]"));
 }
 
-//Mpls uses same input routine for all three subtypes
-//The trick here is that n variable must be set to 1 to mark desired label to be evaluated
+// Mpls uses same input routine for all three subtypes
+// The trick here is that n variable must be set to 1 to mark desired label to be evaluated
 TEST_F(filter_types_test, mpls_Label)
 {
 	ASSERT_EQ(FF_OK, init("mplsLabel 0"));
-	//According to ndfump 1.label 2.exp 3.eos: r->mpls_label[0] >> 4 , (r->mpls_label[0] & 0xF ) >> 1, r->mpls_label[0] & 1,
-	//Setting 1st label
+	// According to ndfump 1.label 2.exp 3.eos: r->mpls_label[0] >> 4 , (r->mpls_label[0] & 0xF ) >> 1, r->mpls_label[0] & 1,
+	// Setting 1st label
 	fillMPLS("\x0f\x00\x00\x00");
 	EXPECT_TRUE(eval(&rec));
 	fillMPLS("\x0f\x00\xa0\x00");
@@ -757,7 +784,7 @@ TEST_F(filter_types_test, mpls_Label)
 	fillMPLS("\x60\x00\x00\x00");
 	EXPECT_FALSE(eval(&rec));
 
-	ASSERT_EQ(FF_OK, init("mplsLabel 574373")); //\b 1000 1100 0011 1010 0101 20bits to make sense of ordering
+	ASSERT_EQ(FF_OK, init("mplsLabel 574373")); // \b 1000 1100 0011 1010 0101 20bits to make sense of ordering
 	fillMPLS("\x5f\x3a\x8c\x00");
 	EXPECT_TRUE(eval(&rec));
 	fillMPLS("\x57\x3a\x8c\x01");
@@ -774,7 +801,7 @@ TEST_F(filter_types_test, mpls_Label)
 	EXPECT_NE(FF_OK, init("mplsLabel invalid-input"));
 }
 
-//EOS test for position of eos mark counting from 1
+// EOS test for position of eos mark counting from 1
 TEST_F(filter_types_test, mpls_Eos)
 {
 	ASSERT_EQ(FF_OK, init("mplsEos 1"));
@@ -848,7 +875,7 @@ TEST_F(filter_types_test, mpls_Exp)
 
 	EXPECT_EQ(FF_OK, init("mplsExp & 10"));
 
-	//Negative for invalid operators
+	// Negative for invalid operators
 	EXPECT_NE(FF_OK, init("mplsExp invalid-input"));
 }
 

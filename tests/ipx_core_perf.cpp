@@ -1,6 +1,28 @@
-//
-// Created by istoffa on 5/15/17.
-//
+/*
+
+ Copyright (c) 2015-2017, Imrich Stoffa
+
+ This file is part of libnf.net project.
+
+ Libnf is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ Libnf is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with libnf.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+/**
+ * \file ipx_core_perf.cpp
+ * \brief Performance test of ffilter evaluation
+ */
 
 #include <gtest/gtest.h>
 #include <arpa/inet.h>
@@ -158,13 +180,26 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
 		lvalue->id[0].index = FLD_IP_ADDR;
 		lvalue->id[1].index = FLD_IP_ADDR2;
 
+    } else if (!strcmp(valstr, "net")) {
+        type = FF_TYPE_ADDR;
+        lvalue->id[0].index = FLD_IP_ADDR;
+        lvalue->id[1].index = FLD_IP_ADDR2;
+
 	} else if (!strcmp(valstr, "srcip")) {
 		type = FF_TYPE_ADDR;
 		lvalue->id[0].index = FLD_IP_ADDR;
 
+    } else if (!strcmp(valstr, "srcnet")) {
+        type = FF_TYPE_ADDR;
+        lvalue->id[0].index = FLD_IP_ADDR;
+
 	} else if (!strcmp(valstr, "dstip")) {
 		type = FF_TYPE_ADDR;
 		lvalue->id[0].index = FLD_IP_ADDR2;
+
+    } else if (!strcmp(valstr, "dstnet")) {
+        type = FF_TYPE_ADDR;
+        lvalue->id[0].index = FLD_IP_ADDR;
 
 	} else if (!strcmp(valstr, "timestamp")) {
 		type = FF_TYPE_TIMESTAMP;
@@ -202,38 +237,64 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
  * @param size Length of selected data
  * @return FF_OK on data copied
  */
-ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid, char* buf, size_t *size)
+ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid, char** buf, size_t *size)
 {
 	struct mock_rec *trec = (struct mock_rec*)rec;
 
 	uint64_t tmp;
-	char *data;
+	char *data = *buf;
 
 	switch(extid.index) {
-	case FLD_SPORT: data=(char*)&trec->i16; break;
-	case FLD_DPORT: data=(char*)&trec->i16_2; break;
-	case FLD_TSTART: data=(char*)&trec->i64; break;
-	case FLD_TEND: data=(char*)&trec->i64_2; break;
-	case FLD_PACKETS: data=(char*)&trec->i32_2; break;
-	case FLD_BYTES: data=(char*)&trec->i32; break;
-	case FLD_FLAGS: data=(char*)&trec->i8; break;
-	case FLD_PROTO: data=(char*)&trec->i8_2; break;
+	case FLD_SPORT:
+		data = (char*)&trec->i16;
+		*size = sizeof(trec->i16);
+		break;
+	case FLD_DPORT:
+		data = (char*)&trec->i16_2;
+		*size = sizeof(trec->i16_2);
+		break;
+	case FLD_TSTART:
+		data = (char*)&trec->i64;
+		*size = sizeof(trec->i64);
+		break;
+	case FLD_TEND:
+		data = (char*)&trec->i64_2;
+		*size = sizeof(trec->i64_2);
+		break;
+	case FLD_PACKETS:
+		data = (char*)&trec->i32_2;
+		*size = sizeof(trec->i32_2);
+		break;
+	case FLD_BYTES:
+		data = (char*)&trec->i32;
+		*size = sizeof(trec->i32);
+		break;
+	case FLD_FLAGS:
+		data = (char*)&trec->i8;
+		*size = sizeof(trec->i8);
+		break;
+	case FLD_PROTO:
+		data = (char*)&trec->i8_2;
+		*size = sizeof(trec->i8_2);
+		break;
 
 	case FLD_DURATION:
 		tmp = trec->i64_2 - trec->i64;
-		memcpy(buf+sizeof(char*), &tmp, sizeof(tmp));
-		data=buf+sizeof(char*); break;
-
+		memcpy(data, &tmp, sizeof(tmp));
+		*size = sizeof(tmp);
+		break;
 	case FLD_BPP:
 		tmp = trec->i32_2/(!trec->i32?1:trec->i32);
-		memcpy(buf+sizeof(char*), &tmp, sizeof(tmp));
-		data=buf+sizeof(char*); break;
-
+		memcpy(data, &tmp, sizeof(tmp));
+		*size = sizeof(tmp);
+		break;
 	case FLD_REAL:
 		data = (char *)&trec->real;
+		*size = sizeof(tmp);
 		break;
 	case FLD_MAC_ADDR:
 		data = (char *)&trec->mac;
+		*size = sizeof(ff_mpls_stack_t);
 		break;
 	case FLD_MPLS:
 		data = (char *)&trec->mpls;
@@ -269,7 +330,7 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
 	default : *size = 0; return FF_ERR_OTHER;
 	}
 
-	*((char**)buf) = data;
+	*buf = data;
 
 	return FF_OK;
 }
