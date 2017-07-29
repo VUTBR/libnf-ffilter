@@ -603,10 +603,11 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
     // determine field type and assign data to lvalue */
 	ff_val_t* tmp;
 	switch (node->type) {
-	case FF_TYPE_UINT64:
-	case FF_TYPE_UINT32:
-	case FF_TYPE_UINT16:
-	case FF_TYPE_UINT8:
+    /*
+    case FF_TYPE_UINT64:
+    case FF_TYPE_UINT32:
+    case FF_TYPE_UINT16:
+    case FF_TYPE_UINT8:
 		if (str_to_uint(filter, valstr, FF_TYPE_UINT64, &node->value, &node->vsize)) {
 			ff_set_error(filter, "Can't convert '%s' into numeric value", valstr);
 			return FF_ERR_OTHER_MSG;
@@ -622,7 +623,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 			return FF_ERR_OTHER_MSG;
 		}
 		break;
-
+    */
 	case FF_TYPE_MPLS:
 		if (str_to_uint(filter, valstr, FF_TYPE_UINT32, &node->value, &node->vsize)) {
 			ff_set_error(filter, "Can't convert '%s' into numeric value", valstr);
@@ -653,19 +654,29 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 		}
 		break;
 
-		// unsigned with undefined data size (internally mapped to uint64_t in network order) */
+    // unsigned with undefined data size (internally mapped to uint64_t in network order) */
+    case FF_TYPE_UINT64:
+    case FF_TYPE_UINT32:
+    case FF_TYPE_UINT16:
+    case FF_TYPE_UINT8:
 	case FF_TYPE_UNSIGNED_BIG:
 	case FF_TYPE_UNSIGNED:
 		if (str_to_uint64(filter, valstr, &node->value, &node->vsize)) {
 			node->value = calloc(1, sizeof(uint64_t));
-			if (!node->value) return FF_ERR_NOMEM;
+            if (!node->value) {
+                return FF_ERR_NOMEM;
+            }
 			node->vsize = sizeof(uint64_t);
+
 			if (filter->options.ff_rval_map_func == NULL) {
 				node->vsize = 0;
-				ff_set_error(filter, "Can't convert '%s' into numeric value", valstr);
+				ff_set_error(filter, "Can't convert '%s' into numeric value, "
+                    "missing literal mapping function", valstr);
 				return FF_ERR_OTHER_MSG;
+
 			} else if (filter->options.ff_rval_map_func(filter, valstr, node->type, node->field,
-									node->value, &node->vsize) != FF_OK) {
+                node->value, &node->vsize) != FF_OK) {
+
 				free(node->value);
 				node->vsize = 0;
 				ff_set_error(filter, "Can't map '%s' to numeric value", valstr);
@@ -674,25 +685,17 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 		}
 		break;
 
+    case FF_TYPE_INT64:
+    case FF_TYPE_INT32:
+    case FF_TYPE_INT16:
+    case FF_TYPE_INT8:
 	case FF_TYPE_SIGNED_BIG:
 	case FF_TYPE_SIGNED:
-		if (str_to_int64(filter, valstr, &node->value, &node->vsize)) {
-			node->value = calloc(1, sizeof(uint64_t));
-			node->vsize = sizeof(uint64_t);
-			if (!node->value) return FF_ERR_NOMEM;
-			if (filter->options.ff_rval_map_func == NULL) {
-				node->vsize = 0;
-				ff_set_error(filter, "Can't convert '%s' into numeric value", valstr);
-				return FF_ERR_OTHER_MSG;
-			} else if (filter->options.ff_rval_map_func(filter, valstr, node->type, node->field,
-									node->value, &node->vsize) != FF_OK) {
-				free(node->value);
-				node->vsize = 0;
-				ff_set_error(filter, "Can't map '%s' to numeric value", valstr);
-				return FF_ERR_OTHER_MSG;
-			}
-		}
-		break;
+        if (str_to_int64(filter, valstr, &node->value, &node->vsize)) {
+            ff_set_error(filter, "Can't convert '%s' into numeric value", valstr);
+            return FF_ERR_OTHER_MSG;
+        }
+        break;
 
 	case FF_TYPE_STRING:
 		if ((node->value = strdup(valstr)) == NULL) {
@@ -763,7 +766,6 @@ const char* ff_error(ff_t *filter, const char *buf, int buflen)
 
 	strncpy((char *)buf, filter->error_str, buflen - 1);
 	return buf;
-
 }
 
 /**
