@@ -64,7 +64,7 @@ int ff_yyparse(yyscan_t yyscanner, ff_t *filter);
 void yyerror(yyscan_t yyscanner, ff_t *filter, char *);
 
 // conversion from string to numeric/bit value
-int64_t get_unit(char *unit);
+unsigned get_unit(char *unit);
 int64_t ff_strtoll(char *num, char**endptr, int *err);
 uint64_t ff_strtoull(char *num, char**endptr, int *err);
 

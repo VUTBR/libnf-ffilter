@@ -32,9 +32,9 @@
 #include <stdlib.h>
 
 
-ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, ff_val_t* data, ff_lvalue_t* info)
+ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* info)
 {
-	ff_val_t* fl = data;
+	ff_val_t* fl = (ff_val_t*)data;
 
 	if (op == FF_OP_EQ)
 		switch(type) {
@@ -240,7 +240,7 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, ff_val_t* data, ff_lvalue_t*
  */
 int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 {
-	const ff_val_t* const fl = node->value; // filter node data
+	const ff_val_t* const fl = (ff_val_t*)node->value; // filter node data
 	const ff_rec_t* const rc = (ff_rec_t*) buf; // record data
 	ff_rec_t hord; //Host byte order converted value
 
@@ -427,7 +427,8 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_EQ_STR:
 		return !strncmp(&rc->str, &fl->str, node->vsize);
 	case FFAT_IS_STR:
-		return strcasestr(&rc->str, &fl->str) != NULL; //Make it safe
+        // Make it safe
+		return strcasestr(&rc->str, &fl->str) != NULL;
 
 	case FFAT_EQ_MAC:
 		return !memcmp(&rc->ui, &fl->ui, sizeof(ff_mac_t));

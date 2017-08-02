@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <time.h>
+#include <math.h>
 #include <string.h>
 #include <ctype.h>
 #include <sys/types.h>
@@ -52,7 +53,7 @@
 #include "fcore.h"
 
 /// Formatting strings for operators
-const char* ff_oper_str[] = {
+const char* ff_oper_str[FF_OP_TERM_] = {
 		[FF_OP_EQ] = "EQ/=/==",
 		[FF_OP_LT] = "LT/<",
 		[FF_OP_GT] = "GT/>",
@@ -60,7 +61,8 @@ const char* ff_oper_str[] = {
 };
 
 /// Formatting strings for data types
-const char* ff_type_str[] = {
+const char* ff_type_str[FF_TYPE_TERM_] = {
+
 		[FF_TYPE_UNSIGNED] = "uint",
 		[FF_TYPE_TIMESTAMP] = "uint",
 		[FF_TYPE_TIMESTAMP_BIG] = "uint",
@@ -88,7 +90,7 @@ const char* ff_type_str[] = {
  * \param[in] unit Suffix of number
  * \return 0 on unknown, scale otherwise eg. (1k -> 1000) etc.
  */
-int64_t get_unit(char *unit)
+unsigned get_unit(char *unit)
 {
 	if (strlen(unit) > 1)
 		return 0;
@@ -169,12 +171,12 @@ uint64_t ff_strtoull(char *valstr, char**endptr, int* err)
  */
 int64_t ff_strtoll(char *valstr, char**endptr, int* err)
 {
-	uint64_t tmp64;
+	int64_t tmp64;
 	int mult = 0;
 
 	errno = 0;
     // Base 0 - given the string prefixes: 0x is base 16 0x0 is 8 and no prefix is base 10
-	tmp64 = strtoll(valstr, endptr, 0);
+	tmp64 = (int64_t) strtoll(valstr, endptr, 0);
 	if (errno != 0) {
 		*err = errno;
 		*endptr = valstr;
@@ -337,11 +339,25 @@ int str_to_real(ff_t *filter, char *str, char **res, size_t *vsize)
 	void *ptr;
 
 	char *endptr;
+    int err = 0;
 	tmp64 = strtod(str, &endptr);
+    err = errno;
 
-	if (*endptr){
-		return 1;
-	}
+    if (err == ERANGE) {
+        if (fpclassify(tmp64) != FP_ZERO) {
+            ff_set_error(filter, "Conversion failed, to real number, "
+                "due to overflow/underflow \"%s\"", str);
+            return 1;
+        }
+
+        if (*endptr) {
+            ff_set_error(filter, "Conversion failed, bad characters in \"%s\"", str);
+            return 1;
+        }
+
+        ff_set_error(filter, "Conversion warning, to real number, "
+            "value too small \"%s\"", str);
+    }
 
 	*vsize = sizeof(double);
 
@@ -367,18 +383,17 @@ int str_to_real(ff_t *filter, char *str, char **res, size_t *vsize)
 int int_to_netmask(int *numbits, ff_ip_t *mask)
 {
 	int retval = 0;
-	if (*numbits > 128 || *numbits < 0) { *numbits = 128; retval = 1;}
-	//if (*numbits == 0) { retval = 1;}
-
-	//int req_oct = (*numbits >> 5) + ((*numbits & 0b11111) > 0); //Get number of reqired octets
+	if (*numbits > 128 || *numbits < 0) {
+        *numbits = 128; retval = 1;
+    }
 
 	int x;
 	for (x = 0; x < (*numbits >> 5); x++) {
 		mask->data[x] = ~0U;
 	}
+
 	if (x < 4) {
 		uint32_t bitmask = ~0U;
-		//mask->data[x] = htonl(~(bitmask >> (*numbits & 0b11111)));
 		mask->data[x] = htonl(~(bitmask >> (*numbits & 0x1f)));
 	}
 	return retval;
@@ -422,10 +437,10 @@ char* unwrap_ip(char *ip_str, int numbits)
 
 /**
  * \brief Extended conversion from ip string to internal representation.
- * \param filter
- * \param str
- * \param res
- * \param size
+ * \param filter Filter object
+ * \param str    String to convert
+ * \param res    Data in converted from
+ * \param size   Size of memory allocated for result
  * \return Zero on success
  */
 int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
@@ -435,7 +450,8 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 	char *ip_str = strdup(str);
 	char *ip;
 	char *mask;
-	int ip_ver = 0; //Guess ip version
+    // Guess ip version
+	int ip_ver = 0;
 
 	int numbits;
 
@@ -468,6 +484,7 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 				ip_ver = 6;
 			} else {
 				// Invalid mask
+                ff_set_error(filter, "Conversion failed, invalid address mask \"%s\"", str);
 				free(ptr);
 				free(ip_str);
 				return 1;
@@ -475,6 +492,7 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 		} else {
 			// for ip v6 require ::0 if address is shortened;
 			if (int_to_netmask(&numbits, &(ptr->mask))) {
+                ff_set_error(filter, "Conversion failed, invalid form of address/bits \"%s\"", str);
 				free(ptr);
 				free(ip_str);
 				return 1;
@@ -500,6 +518,7 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 	} else if (inet_pton(AF_INET6, ip_str, &ptr->ip) && (ip_ver != 4)) {
 		ptr->ver = 6;
 	} else {
+        ff_set_error(filter, "Conversion failed, bad character in address \"%s\"", str);
 		free(ptr);
 		free(ip_str);
 		return 1;
@@ -564,6 +583,7 @@ int str_to_mac(ff_t *filter, char *str, char **res, size_t *size)
 		}
 	}
 	if (ret) {
+        ff_set_error(filter, "Conversion failed, bad characters in mac address \"%s\"", str);
 		free(ptr);
 		*size = 0;
 	} else {
@@ -578,11 +598,13 @@ int str_to_timestamp(ff_t *filter, char* str, char** res, size_t *size)
 	struct tm tm;
 	ff_timestamp_t timest;
 
+    // FIXME: Some better function ? This causes implicit declaration
 	if (strptime(str, "%F%n%T", &tm) == NULL) {
+        ff_set_error(filter, "Conversion failed, bad characters in timestamp \"%s\"", str);
 		return 1;
 	}
 
-	timest = mktime(&tm);
+	timest = (ff_timestamp_t)mktime(&tm);
 
 	char *ptr = malloc(sizeof(ff_timestamp_t));
 	if (!ptr) {
@@ -636,7 +658,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 
 		memcpy(&tmp->mpls.val, node->value, sizeof(uint32_t));
 		free(node->value);
-		node->value = tmp;
+		node->value = (char*)tmp;
 		node->vsize = sizeof(ff_mpls_t);
 		break;
 
@@ -728,7 +750,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 	return FF_OK;
 }
 
-ff_error_t ff_type_validate(yyscan_t *scanner, ff_t *filter, const char *valstr, ff_node_t* node,
+ff_error_t ff_type_validate(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t* node,
                             ff_lvalue_t* info)
 {
 	ff_error_t retval;
@@ -864,8 +886,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 	ff_node_t *retval;
 	ff_lvalue_t lvalue;
 
-	int multinode = 1;
-	ff_oper_t root_oper = FF_OP_UNDEF;
+	ff_oper_t root_oper;
 
 	retval = NULL;
 
@@ -887,7 +908,8 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 		fieldstr++;
 		break;
 	default:
-		multinode = 0;
+        root_oper = FF_OP_UNDEF;
+		break;
 	}
 
 	do { /* Break on error */
@@ -920,20 +942,20 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 
 		retval = node;
 
-		//If node contains in list
+		// If node contains in list
 		if (oper == FF_OP_IN) {
 			void* tmp;
 			int err = FF_OK;
-			//List is in value
+			// List is in value
 			ff_node_t *elem = (ff_node_t *)valstr;
 
-			//Connect it to right subtree
+			// Connect it to right subtree
 			node->right = elem;
 			retval = node;
 
-			//Now process all items
+			// Now process all items
 			do {
-				//Copy type and field or original
+				// Copy type and field or original
 				elem->type = node->type;
 				elem->field = node->field;
 				elem->vsize = 0;
@@ -942,6 +964,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 				if(err == FF_OK) {
 					elem = elem->right;
 				} else {
+                    ff_set_error(filter, "Failed to allocate node!");
 					ff_free_node(node);
 					retval = NULL;
 					break;
@@ -951,14 +974,16 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 
 			node->left = NULL;
 
-		//Normal behavior, convert one value
+		// Normal behavior, convert one value
 		} else if (*valstr == 0 || (ff_type_validate(scanner, filter, valstr, node, &lvalue) != FF_OK)) {
 
 			if (oper == FF_OP_EXIST) {
-				;//OP exist does not need value
-			} else if (lvalue.literal && lvalue.options & FF_OPTS_CONST &&
-					   (ff_type_validate(scanner, filter, lvalue.literal, node, &lvalue) == FF_OK)) {
-				;//Also pass if for constant there is a default value
+				// OP exist does not need value
+                ;
+			} else if (lvalue.literal && lvalue.options & FF_OPTS_CONST
+                && (ff_type_validate(scanner, filter, (char*)lvalue.literal, node, &lvalue) == FF_OK)) {
+				// Also pass if for constant there is a default value
+                ;
 			} else {
 				retval = NULL;
 				ff_free_node(node);
@@ -970,12 +995,13 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 		}
 
 		if (lvalue.id[1].index != 0) {
-			//Setup nodes in or configuration for pair fields (src/dst etc.)
+			// Setup nodes in or configuration for pair fields (src/dst etc.)
 			ff_node_t* new_root;
 			new_root = ff_branch_node(node,
 									  root_oper == FF_OP_UNDEF ? FF_OP_OR : root_oper,
 									  &lvalue);
 			if (new_root == NULL) {
+                ff_set_error(filter, "Failed to allocate node!");
 				ff_free_node(node);
 				break;
 			}
@@ -994,6 +1020,7 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
 	node = malloc(sizeof(ff_node_t));
 
 	if (node == NULL) {
+        ff_set_error(filter, "Failed to allocate node!");
 		return NULL;
 	}
 
@@ -1016,6 +1043,7 @@ ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t o
 	node = malloc(sizeof(ff_node_t));
 
 	if (node == NULL) {
+        ff_set_error(filter, "Failed to allocate node!");
 		return NULL;
 	}
 
@@ -1030,11 +1058,16 @@ ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t o
 	return node;
 }
 
-/* evaluate node in tree or proces subtree */
-/* return 0 - false; 1 - true; -1 - error  */
+/**
+ * \brief Evaluate node in tree or proces subtree.
+ * \param filter
+ * \param node   Root of abstract syntax tree of expression
+ * \param rec    One "line" of record in format known to adapter \see ff_data_func
+ * \return 0 - false; 1 - true; -1 - error  */
 int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec)
 {
 #define EVAL_BUF_MAX 128
+
     // Since function is reentrant, alocate own buffer
 	char buf[EVAL_BUF_MAX];
     size_t size = EVAL_BUF_MAX;
@@ -1052,11 +1085,11 @@ int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec)
 
 	if (node->oper == FF_OP_YES) return 1;
 
-	/* go deeper into tree */
+	// go deeper into tree
 	if (node->left != NULL ) {
 		left = ff_eval_node(filter, node->left, rec);
 
-		/* do not evaluate if the result is obvious */
+		// do not evaluate if the result is obvious
 		if (node->oper == FF_OP_NOT)			{ return left <= 0; };
 		if (node->oper == FF_OP_OR  && left > 0)	{ return 1; };
 		if (node->oper == FF_OP_AND && left <= 0)	{ return 0; };
@@ -1085,9 +1118,13 @@ int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec)
 	}
 
 	switch (node->oper) {
-	default: return ff_oper_eval_V2(data, size, node);
+    default:
+        return ff_oper_eval_V2(data, size, node);
+
     // Check for presence of item
-	case FF_OP_EXIST: return exist;
+	case FF_OP_EXIST:
+        return exist;
+
 	// Compare against list (right branch is NULL) data retireved once
 	case FF_OP_IN:
 		node = node->right;
@@ -1095,12 +1132,12 @@ int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec)
 			res = ff_oper_eval_V2(data, size, node);
 			node = node->right;
 		 } while (res <= 0 && node);
-		 return res;
+        return res;
 
 	case FF_OP_NOT:
 	case FF_OP_OR:
-	case FF_OP_AND:	return -1;
-
+	case FF_OP_AND:
+        return -1;
 	}
 }
 
@@ -1136,7 +1173,7 @@ ff_error_t ff_options_free(ff_options_t *options) {
 ff_error_t ff_init(ff_t **pfilter, const char *expr, ff_options_t *options) {
 
 	yyscan_t scanner;
-	YY_BUFFER_STATE buf;
+	//YY_BUFFER_STATE buf;
 	int parse_ret;
 	ff_t *filter;
 
@@ -1149,18 +1186,19 @@ ff_error_t ff_init(ff_t **pfilter, const char *expr, ff_options_t *options) {
 
 	filter->root = NULL;
 
-
 	if (options == NULL) {
 		free(filter);
 		return FF_ERR_OTHER;
-
 	}
+
 	memcpy(&filter->options, options, sizeof(ff_options_t));
 
 	ff_set_error(filter, "No Error.");
 
 	ff2_lex_init(&scanner);
-	buf = ff2__scan_string(expr, scanner);
+    // Buff is unused for now
+	//buf = ff2__scan_string(expr, scanner);
+    ff2__scan_string(expr, scanner);
 	parse_ret = ff2_parse(scanner, filter);
 
 

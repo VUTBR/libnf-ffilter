@@ -29,9 +29,11 @@
 
 %{
 	#include <stdio.h>
+    #include <string.h>
+
 	#include "ffilter.h"
 	#include "ffilter_internal.h"
-	#include <string.h>
+	#include "ffilter_gram.h"
 
 	#define YY_EXTRA_TYPE ff_t
 

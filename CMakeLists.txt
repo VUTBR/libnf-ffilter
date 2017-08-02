@@ -17,7 +17,6 @@ set(SOURCES ${SOURCES} "ffilter.c")
 set(SOURCES ${SOURCES} "fcore.c")
 set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.c")
 set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c")
-#set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_internal.h")
 
 #pass cmake settings
 configure_file(

@@ -152,7 +152,7 @@ typedef enum ff_attr_e{
 } ff_attr_t;
 
 
-ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, ff_val_t* data, ff_lvalue_t* info);
+ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* info);
 
 int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node);
 

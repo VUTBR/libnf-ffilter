@@ -97,6 +97,7 @@ typedef enum {
 	FF_TYPE_MPLS,
 	FF_TYPE_TIMESTAMP,      /** uint64_t bit timestamp eval as unsigned, milliseconds from 1-1-1970 00:00:00 */
 	FF_TYPE_TIMESTAMP_BIG,  /** uint64_t bit timestamp eval as unsigned, to host byte order conversion required */
+    FF_TYPE_TERM_
 } ff_type_t;
 
 
@@ -241,11 +242,12 @@ typedef enum {
 	FF_OP_LT,
 	FF_OP_GT,
 	FF_OP_ISSET,
-	FF_OP_EXIST
+	FF_OP_EXIST,
+    FF_OP_TERM_
 } ff_oper_t;
 
-extern const char* ff_oper_str[FF_OP_EXIST+1];
-extern const char* ff_type_str[FF_TYPE_TIMESTAMP_BIG+1];
+extern const char* ff_oper_str[FF_OP_TERM_];
+extern const char* ff_type_str[FF_TYPE_TERM_];
 
 /**
  * \brief External identification of value
