@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <iostream>
 #include <arpa/inet.h>
+#include <string>
 
 extern "C" {
 #include <ffilter.h>
@@ -39,20 +40,31 @@ int main(int argc, char** argv) {
 	return RUN_ALL_TESTS();
 }
 
-
-
 class str_to_number_test : public :: testing::Test {
 protected:
 	virtual void SetUp() {
+        filter = NULL;
+
+        ff_options_init(&test_callbacks); //Prepare structure for callbacks
+
+        test_callbacks->ff_data_func = NULL;
+        test_callbacks->ff_lookup_func = NULL;
+        test_callbacks->ff_rval_map_func = NULL;
+
+        ff_init(&filter, "any", test_callbacks);
+        ff_options_free(test_callbacks);
+
 		ptr = NULL;
 		size = 0;
 	}
+
 	virtual void TearDown() {
+        ff_free(filter);
 	}
 
 	void convert_int(int64_t expect, char* valstr, ff_type_t int_size)
 	{
-		ASSERT_FALSE(str_to_int(NULL, valstr, int_size, &ptr, &size)) << "Failed to convert \""
+		ASSERT_FALSE(str_to_int(filter, valstr, int_size, &ptr, &size)) << "Failed to convert \""
 																	  << valstr << "\" to int";
 		//Data has correct length
 		EXPECT_EQ(sizeof(int64_t), size) << "Size mismatch \""
@@ -64,7 +76,7 @@ protected:
 	}
 	void convert_uint(uint64_t expect, char* valstr, ff_type_t uint_size)
 	{
-		ASSERT_FALSE(str_to_uint(NULL, valstr, uint_size, &ptr, &size)) << "Failed to convert \""
+		ASSERT_FALSE(str_to_uint(filter, valstr, uint_size, &ptr, &size)) << "Failed to convert \""
 																		<< valstr << "\" to unsigned int";
 		//Data has correct length
 		EXPECT_EQ(sizeof(uint64_t), size) << "Size mismatch \""
@@ -77,7 +89,7 @@ protected:
 
 	void convert_real(ff_double_t expect, char* valstr)
 	{
-		ASSERT_FALSE(str_to_real(NULL, valstr, &ptr, &size)) << "Failed to convert \""
+		ASSERT_FALSE(str_to_real(filter, valstr, &ptr, &size)) << "Failed to convert \""
 															 << valstr << "\" to real";
 		//Data has correct length
 		EXPECT_EQ(sizeof(double), size) << "Size mismatch \""
@@ -88,6 +100,9 @@ protected:
 		return;
 	}
 
+    ff_options_t *test_callbacks;
+    ff_t *filter;
+
 	char *ptr;
 	size_t size;
 };
@@ -95,12 +110,24 @@ protected:
 class str_to_addr_test : public :: testing::Test {
 protected:
 	virtual void SetUp() {
+        filter = NULL;
+
+        ff_options_init(&test_callbacks); //Prepare structure for callbacks
+
+        test_callbacks->ff_data_func = NULL;
+        test_callbacks->ff_lookup_func = NULL;
+        test_callbacks->ff_rval_map_func = NULL;
+
+        ff_init(&filter, "any", test_callbacks);
+        ff_options_free(test_callbacks);
+
 		ptr = NULL;
 		size = 0;
 		addrstr[0] = 0;
 		maskstr[0] = 0;
 	}
 	virtual void TearDown() {
+        ff_free(filter);
 	}
 
 	void addr_to_str(ff_net_t* addr, char *addrstr)
@@ -115,7 +142,7 @@ protected:
 
 	void convert_addr(char* valstr, char* expect_addr, char* expect_mask)
 	{
-		ASSERT_FALSE(str_to_addr(NULL, valstr, &ptr, &size)) << "Conversion failed for \"" << valstr << "\"";
+		ASSERT_FALSE(str_to_addr(filter, valstr, &ptr, &size)) << "Conversion failed for \"" << valstr << "\"";
 		EXPECT_EQ((sizeof(ff_net_t)), size);
 		addr_to_str(((ff_net_t*)ptr), &addrstr[0]);
 		ASSERT_STREQ(expect_addr, addrstr) << "Unexpected result of ip conversion";
@@ -127,9 +154,12 @@ protected:
 
 	void not_convert_addr(char* valstr) {
 		int x;
-		EXPECT_TRUE(x = str_to_addr(NULL, valstr, &ptr, &size)) << "Conversion should not succeed for " << valstr;
+		EXPECT_TRUE(x = str_to_addr(filter, valstr, &ptr, &size)) << "Conversion should not succeed for " << valstr;
 		if(!x) free(ptr);
 	}
+
+    ff_options_t *test_callbacks;
+    ff_t *filter;
 
 	static const int addrstr_len = 40;
 	char *ptr;
@@ -141,18 +171,34 @@ protected:
 class str_to_mac_test : public :: testing::Test {
 protected:
 	virtual void SetUp() {
+        filter = NULL;
+
+        ff_options_init(&test_callbacks); //Prepare structure for callbacks
+
+        test_callbacks->ff_data_func = NULL;
+        test_callbacks->ff_lookup_func = NULL;
+        test_callbacks->ff_rval_map_func = NULL;
+
+        ff_init(&filter, "any", test_callbacks);
+        ff_options_free(test_callbacks);
+
 		ptr = NULL;
+
 		size = 0;
 		addrstr[0] = 0;
 	}
 
 	virtual void TearDown() {
+        ff_free(filter);
 	}
 
 	void convert_mac(char* mac, char* expect_mac)
 	{
 		return;
 	}
+
+    ff_options_t *test_callbacks;
+    ff_t *filter;
 
 	char *ptr;
 	size_t size;
@@ -165,45 +211,45 @@ protected:
  */
 TEST_F(str_to_number_test, unsigned_int_valid) {
 
-	convert_uint(0, "0", FF_TYPE_UINT64);
-	convert_uint(1000, "1k", FF_TYPE_UINT64);
-	convert_uint(1000000, "1 M", FF_TYPE_UINT64);
-	convert_uint(UINT16_MAX, "65535", FF_TYPE_UINT64);
-	convert_uint(UINT32_MAX, "4294967295", FF_TYPE_UINT64);
-	convert_uint(1234567890000000000ULL, "1234567890 G", FF_TYPE_UINT64);
-	convert_uint(UINT64_MAX, "18446744073709551615", FF_TYPE_UINT64);
-	convert_uint(0xff, "0xff", FF_TYPE_UINT64);
-	convert_uint(0x3f, "077", FF_TYPE_UINT64);
+	convert_uint(0, const_cast<char*>("0"), FF_TYPE_UINT64);
+	convert_uint(1000, const_cast<char*>("1k"), FF_TYPE_UINT64);
+	convert_uint(1000000, const_cast<char*>("1 M"), FF_TYPE_UINT64);
+	convert_uint(UINT16_MAX, const_cast<char*>("65535"), FF_TYPE_UINT64);
+	convert_uint(UINT32_MAX, const_cast<char*>("4294967295"), FF_TYPE_UINT64);
+	convert_uint(1234567890000000000ULL, const_cast<char*>("1234567890 G"), FF_TYPE_UINT64);
+	convert_uint(UINT64_MAX, const_cast<char*>("18446744073709551615"), FF_TYPE_UINT64);
+	convert_uint(0xff, const_cast<char*>("0xff"), FF_TYPE_UINT64);
+	convert_uint(0x3f, const_cast<char*>("077"), FF_TYPE_UINT64);
 
 }
 
 TEST_F(str_to_addr_test, ipv4_valid)
 {
 	/*           Tested string - Expected ip - Expected mask  */
-	convert_addr("192.168.0.25/4", "192.0.0.0", "240.0.0.0");
-	convert_addr("192.168/10", "192.128.0.0", "255.192.0.0");
-	convert_addr("255/4", "240.0.0.0", "240.0.0.0");
+	convert_addr(const_cast<char*>("192.168.0.25/4"), const_cast<char*>("192.0.0.0"), const_cast<char*>("240.0.0.0"));
+	convert_addr(const_cast<char*>("192.168/10"), const_cast<char*>("192.128.0.0"), const_cast<char*>("255.192.0.0"));
+	convert_addr(const_cast<char*>("255/4"), const_cast<char*>("240.0.0.0"), const_cast<char*>("240.0.0.0"));
 }
 
 TEST_F(str_to_addr_test, ipv4_invalid) {
 
-	not_convert_addr("22.0 .10");
-	not_convert_addr("192.168.0.0/33");
-	not_convert_addr("929-323-098");
-	not_convert_addr("192.168. 0.0");
-	not_convert_addr("192.168 .0.0");
+	not_convert_addr(const_cast<char*>("22.0 .10"));
+	not_convert_addr(const_cast<char*>("192.168.0.0/33"));
+	not_convert_addr(const_cast<char*>("929-323-098"));
+	not_convert_addr(const_cast<char*>("192.168. 0.0"));
+	not_convert_addr(const_cast<char*>("192.168 .0.0"));
 }
 
 TEST_F(str_to_addr_test, ipv6_valid) {
-	convert_addr("2001:608::/15", "2000::", "fffe::");
+	convert_addr(const_cast<char*>("2001:608::/15"), const_cast<char*>("2000::"), const_cast<char*>("fffe::"));
 
 }
 TEST_F(str_to_addr_test, invalid_numeric_mask){
 
-	not_convert_addr("192.168.0.0/-1");
-	not_convert_addr("192.168.0.0/33");
-	not_convert_addr("::127/-1");
-	not_convert_addr("::127/129");
+	not_convert_addr(const_cast<char*>("192.168.0.0/-1"));
+	not_convert_addr(const_cast<char*>("192.168.0.0/33"));
+	not_convert_addr(const_cast<char*>("::127/-1"));
+	not_convert_addr(const_cast<char*>("::127/129"));
 }
 
 /**
@@ -223,7 +269,7 @@ TEST_F(str_to_number_test, unsigned_invalid_number_conversion) {
 
 	for (int x = 0; numbers[x][0] ; x++) {
 		//Conversion should fail
-		EXPECT_TRUE(str_to_uint(NULL, numbers[x], FF_TYPE_UINT64, &ptr, &size )) <<
+		EXPECT_TRUE(str_to_uint(filter, numbers[x], FF_TYPE_UINT64, &ptr, &size )) <<
 			"Conversion to number " << x <<  ". \"" << numbers[x] << "\" should fail";
 	}
 
@@ -236,7 +282,7 @@ TEST_F(str_to_number_test, unsigned_large_number_trimm) {
 
 	char number[] = "18446744073709551615";
 
-	EXPECT_EQ(0, str_to_uint(NULL, number, FF_TYPE_UINT32, &ptr, &size )) <<
+	EXPECT_EQ(0, str_to_uint(filter, number, FF_TYPE_UINT32, &ptr, &size )) <<
 		"Failed to convert test number" <<"\"" << number << "\"";
 
 	EXPECT_EQ(size, sizeof(uint32_t));
@@ -252,11 +298,11 @@ TEST_F(str_to_number_test, unsigned_large_number_trimm) {
 TEST_F(str_to_number_test, signed_valid_max_range){
 
 	//Check max range numbers
-	ASSERT_EQ(0, str_to_int(NULL, "-9223372036854775808", FF_TYPE_INT64, &ptr, &size));
+	ASSERT_EQ(0, str_to_int(filter, const_cast<char*>("-9223372036854775808"), FF_TYPE_INT64, &ptr, &size));
 	EXPECT_EQ((sizeof(int64_t)), size);
 	ASSERT_EQ((INT64_MIN), *((uint64_t *)ptr));
 
-	ASSERT_EQ(0, str_to_int(NULL, "9223372036854775807", FF_TYPE_INT64, &ptr, &size));
+	ASSERT_EQ(0, str_to_int(filter, const_cast<char*>("9223372036854775807"), FF_TYPE_INT64, &ptr, &size));
 	EXPECT_EQ((sizeof(int64_t)), size);
 	ASSERT_EQ((INT64_MAX), *((uint64_t *)ptr));
 
@@ -268,17 +314,9 @@ TEST_F(str_to_number_test, signed_valid_max_range){
 TEST_F(str_to_number_test, int_invalid_range) {
 
 	//Try convert over max uint64 range numbers
-	ASSERT_EQ(0, str_to_int(NULL, "-9223372036854775809", FF_TYPE_INT64, &ptr, &size));
-	EXPECT_EQ((sizeof(int64_t)), size);
-
-	ASSERT_EQ((INT64_MIN), *((uint64_t *)ptr));
-	free(ptr);
-
-	ASSERT_EQ(0, str_to_int(NULL, "9223372036854775808", FF_TYPE_INT64, &ptr, &size));
-	EXPECT_EQ((sizeof(int64_t)), size);
-
-	ASSERT_EQ((INT64_MAX), *((uint64_t *)ptr));
-	//Results should be trimmed
+	ASSERT_NE(0, str_to_int(filter, const_cast<char*>("-9223372036854775809"), FF_TYPE_INT64, &ptr, &size));
+	ASSERT_NE(0, str_to_int(filter, const_cast<char*>("9223372036854775808"), FF_TYPE_INT64, &ptr, &size));
+	//Max range exceeded error
 }
 
 
@@ -287,21 +325,21 @@ TEST_F(str_to_number_test, int_invalid_range) {
  */
 TEST_F(str_to_addr_test, addrV6_full_valid) {
 
-	ASSERT_EQ(0, str_to_addr(NULL, "2001:608::0", &ptr, &size));
+	ASSERT_EQ(0, str_to_addr(filter, const_cast<char*>("2001:608::0"), &ptr, &size));
 	EXPECT_EQ((sizeof(ff_net_t)), size);
 	//Address to be marked as ipv6
 
 	inet_ntop(AF_INET6, &(((ff_net_t*)ptr)->ip.data[0]), addrstr, 40);
 
-	ASSERT_STREQ("2001:608::", addrstr);
+	ASSERT_STREQ(const_cast<char*>("2001:608::"), addrstr);
 	free(ptr);
 
-	ASSERT_EQ(0, str_to_addr(NULL, "2001:608:0:f:f:f:f:1", &ptr, &size));
+	ASSERT_EQ(0, str_to_addr(filter, const_cast<char*>("2001:608:0:f:f:f:f:1"), &ptr, &size));
 	EXPECT_EQ((sizeof(ff_net_t)), size);
 
 	inet_ntop(AF_INET6, &(((ff_net_t*)ptr)->ip.data[0]), addrstr, 40);
 
-	ASSERT_STREQ("2001:608:0:f:f:f:f:1", addrstr);
+	ASSERT_STREQ(const_cast<char*>("2001:608:0:f:f:f:f:1"), addrstr);
 	free(ptr);
 }
 
@@ -310,20 +348,20 @@ TEST_F(str_to_addr_test, addrV6_full_valid) {
  */
 TEST_F(str_to_addr_test, addrV4_full_valid_numeric_mask) {
 
-	ASSERT_EQ(0, str_to_addr(NULL, "192.168.0.1/10", &ptr, &size));
+	ASSERT_EQ(0, str_to_addr(filter, const_cast<char*>("192.168.0.1/10"), &ptr, &size));
 	EXPECT_EQ((sizeof(ff_net_t)), size);
 
 	inet_ntop(AF_INET, &(((ff_net_t*)ptr)->ip.data[3]), addrstr, 40);
 
-	ASSERT_STREQ("192.128.0.0", addrstr);
+	ASSERT_STREQ(const_cast<char*>("192.128.0.0"), addrstr);
 	free(ptr);
 
-	ASSERT_EQ(0, str_to_addr(NULL, "255.255.255.255/17", &ptr, &size));
+	ASSERT_EQ(0, str_to_addr(filter, const_cast<char*>("255.255.255.255/17"), &ptr, &size));
 	EXPECT_EQ((sizeof(ff_net_t)), size);
 
 	inet_ntop(AF_INET, &(((ff_net_t*)ptr)->ip.data[3]), addrstr, 40);
 
-	ASSERT_STREQ("255.255.128.0", addrstr);
+	ASSERT_STREQ(const_cast<char*>("255.255.128.0"), addrstr);
 	free(ptr);
 
 }
@@ -333,20 +371,20 @@ TEST_F(str_to_addr_test, addrV4_full_valid_numeric_mask) {
  */
 TEST_F(str_to_addr_test, addrV4_short_valid_numeric_mask) {
 
-	ASSERT_EQ(0, str_to_addr(NULL, "192.168/10", &ptr, &size));
+	ASSERT_EQ(0, str_to_addr(filter, const_cast<char*>("192.168/10"), &ptr, &size));
 	EXPECT_EQ((sizeof(ff_net_t)), size);
 
 	inet_ntop(AF_INET, &(((ff_net_t*)ptr)->ip.data[3]), addrstr, 40);
 
-	ASSERT_STREQ("192.128.0.0", addrstr);
+	ASSERT_STREQ(const_cast<char*>("192.128.0.0"), addrstr);
 	free(ptr);
 
-	ASSERT_EQ(0, str_to_addr(NULL, "255.255.255/17", &ptr, &size));
+	ASSERT_EQ(0, str_to_addr(filter, const_cast<char*>("255.255.255/17"), &ptr, &size));
 	EXPECT_EQ((sizeof(ff_net_t)), size);
 
 	inet_ntop(AF_INET, &(((ff_net_t*)ptr)->ip.data[3]), addrstr, 40);
 
-	ASSERT_STREQ("255.255.128.0", addrstr);
+	ASSERT_STREQ(const_cast<char*>("255.255.128.0"), addrstr);
 
 	free(ptr);
 }
@@ -356,20 +394,19 @@ TEST_F(str_to_addr_test, addrV4_short_valid_numeric_mask) {
  */
 TEST_F(str_to_addr_test, addrV4_valid_mask) {
 
-	ASSERT_EQ(0, str_to_addr(NULL, "192.168.0.0 255.0.0.0", &ptr, &size));
+	ASSERT_EQ(0, str_to_addr(filter, const_cast<char*>("192.168.0.0 255.0.0.0"), &ptr, &size));
 	EXPECT_EQ((sizeof(ff_net_t)), size);
 	inet_ntop(AF_INET, &(((ff_net_t*)ptr)->ip.data[3]), addrstr, 40);
 
-	ASSERT_STREQ("192.0.0.0", addrstr);
+	ASSERT_STREQ(const_cast<char*>("192.0.0.0"), addrstr);
 	free(ptr);
 
-	ASSERT_EQ(0, str_to_addr(NULL, "255.255.0.0 255.128.0.0", &ptr, &size));
+	ASSERT_EQ(0, str_to_addr(filter, const_cast<char*>("255.255.0.0 255.128.0.0"), &ptr, &size));
 	EXPECT_EQ((sizeof(ff_net_t)), size);
 
 	inet_ntop(AF_INET, &(((ff_net_t*)ptr)->ip.data[3]), addrstr, 40);
 
-	ASSERT_STREQ("255.128.0.0", addrstr);
-
+	ASSERT_STREQ(const_cast<char*>("255.128.0.0"), addrstr);
 }
 
 /**
@@ -379,7 +416,7 @@ TEST_F(str_to_mac_test, valid_mac) {
 
 	char mac[] = "02:ff:de:ad:be:ef";
 
-	ASSERT_EQ(0, str_to_mac(NULL, mac, &ptr, &size));
+	ASSERT_EQ(0, str_to_mac(filter, mac, &ptr, &size));
 	EXPECT_EQ(sizeof(ff_mac_t), size);
 	snprintf(addrstr, 40,"%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5]);
 
@@ -393,24 +430,24 @@ TEST_F(str_to_mac_test, invalid_mac) {
 
 	char mac[] = "02:fff:de:ad:be:ef";
 
-	EXPECT_EQ(1, str_to_mac(NULL, mac, &ptr, &size));
+	EXPECT_EQ(1, str_to_mac(filter, mac, &ptr, &size));
 
 	char mac2[] = "02:ff:de:ad:be:ef:ed";
 
-	EXPECT_EQ(1, str_to_mac(NULL, mac2, &ptr, &size));
+	EXPECT_EQ(1, str_to_mac(filter, mac2, &ptr, &size));
 }
 
 TEST_F(str_to_number_test, real_number) {
 
 	char number[] = "-10.0e-3";
 
-	ASSERT_EQ(0, str_to_real(NULL, number, &ptr, &size));
+	ASSERT_EQ(0, str_to_real(filter, number, &ptr, &size));
 	ASSERT_EQ(-10.0e-3,  *((double *)ptr));
 }
 
 TEST_F(str_to_number_test, invalid_real) {
 	int x;
-	x = str_to_real(NULL, "092238.39ffs.e", &ptr, &size);
+	x = str_to_real(filter, const_cast<char*>("092238.39ffs.e"), &ptr, &size);
 	EXPECT_TRUE(x);
 	if (!x) free(ptr);
 }
