@@ -276,11 +276,11 @@ typedef struct ff_node_s {
 	ff_extern_id_t field;         /** field ID */
 	char *value;                  /** buffer allocated for data */
 	size_t vsize;                 /** size of data in value */
-	//TODO: could be ommited in future if pointer to function to evaluate is used instead
+	//Future TODO: could be ommited in future if pointer to function to evaluate is used instead
 	int type;                     /** data type for value */
 	ff_oper_t oper;               /** operation */
 
-	//TODO: transform to heap data structure - no pointers
+	//Future TODO: transform to heap data structure - no pointers
 	struct ff_node_s *left;
 	struct ff_node_s *right;
 
