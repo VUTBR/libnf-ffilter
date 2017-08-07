@@ -77,7 +77,7 @@ int str_to_real(ff_t *filter, char *str, char **res, size_t *vsize);
 int str_to_mac(ff_t *filter, char *str, char **res, size_t *vsize);
 int str_to_addr(ff_t *filter, char *str, char **res, size_t *vsize);
 int str_to_timestamp(ff_t *filter, char *str, char **res, size_t *vsize);
-int int_to_netmask(int *numbits, ff_ip_t *mask);
+int int_to_netmask(int numbits, ff_ip_t *mask);
 char* unwrap_ip(char *ip_str, int numbits);
 
 ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t* node);

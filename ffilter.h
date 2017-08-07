@@ -176,7 +176,7 @@ typedef union ff_val_u {
 	double real;
 	ff_mpls_t mpls;
 
-	char str;
+	char str[1];
 	ff_net_t net;
 	ff_ip_t ip;
 } ff_val_t;
@@ -195,7 +195,7 @@ typedef union ff_rec_u {
 	int8_t i1;
 	double real;
 
-	char str;
+	char str[1];
 	ff_mpls_stack_t mpls;
 	ff_net_t net;
 	ff_ip_t ip;

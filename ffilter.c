@@ -122,13 +122,14 @@ uint64_t ff_strtoull(char *valstr, char**endptr, int* err)
 {
 	uint64_t tmp64;
 	uint64_t mult = 0;
+    *err = 0;
 
 	// Base 0 - given the string 0x is base 16 0x0 is 8 and no prefix is base 10
 	if (valstr[0] == '-') {
 		*err = EINVAL;
 	}
 
-	errno = 0;
+    errno = 0;
 	tmp64 = strtoull(valstr, endptr, 0);
         if (errno != 0) {
             *err = errno;
@@ -141,7 +142,7 @@ uint64_t ff_strtoull(char *valstr, char**endptr, int* err)
 	}
 
 	// Allow one whitespace before unit
-	if (*(*endptr) == ' ') {
+	if ((**endptr) == ' ') {
 		(*endptr)++;
 	}
 
@@ -149,8 +150,6 @@ uint64_t ff_strtoull(char *valstr, char**endptr, int* err)
 	if (mult != 0) {
 	// Move conversion potinter after unit
 		*endptr = (*endptr + 1);
-	} else {
-		endptr--;
 	}
 
 	if (mult != 0) {
@@ -173,9 +172,10 @@ int64_t ff_strtoll(char *valstr, char**endptr, int* err)
 {
 	int64_t tmp64;
 	int mult = 0;
+    *err = 0;
 
-	errno = 0;
     // Base 0 - given the string prefixes: 0x is base 16 0x0 is 8 and no prefix is base 10
+    errno = 0;
 	tmp64 = (int64_t) strtoll(valstr, endptr, 0);
 	if (errno != 0) {
 		*err = errno;
@@ -196,8 +196,6 @@ int64_t ff_strtoll(char *valstr, char**endptr, int* err)
 	if (mult != 0) {
 	// Move conversion potinter by one
 		*endptr = (*endptr + 1);
-	} else {
-		endptr--;
 	}
 
 	if (mult != 0) {
@@ -343,20 +341,18 @@ int str_to_real(ff_t *filter, char *str, char **res, size_t *vsize)
 	tmp64 = strtod(str, &endptr);
     err = errno;
 
+    if (*endptr) {
+        ff_set_error(filter, "Conversion failed, bad characters in \"%s\"", str);
+        return 1;
+    }
     if (err == ERANGE) {
-        if (fpclassify(tmp64) != FP_ZERO) {
+        if (tmp64 == HUGE_VALF || tmp64 == HUGE_VALL) {
             ff_set_error(filter, "Conversion failed, to real number, "
                 "due to overflow/underflow \"%s\"", str);
             return 1;
         }
-
-        if (*endptr) {
-            ff_set_error(filter, "Conversion failed, bad characters in \"%s\"", str);
-            return 1;
-        }
-
-        ff_set_error(filter, "Conversion warning, to real number, "
-            "value too small \"%s\"", str);
+//        ff_set_error(filter, "Conversion warning, to real number, "
+//           "value too small \"%s\"", str);
     }
 
 	*vsize = sizeof(double);
@@ -376,32 +372,32 @@ int str_to_real(ff_t *filter, char *str, char **res, size_t *vsize)
 
 /**
  * \brief Transform mask representation from number of network bits format to full bit-mask.
- * \param numbits Number of network portion bits
- * \param mask    Ip address containing full mask
+ * \param numbits   Number of network portion bits
+ * \param[out] mask Ip address containing full mask
  * \return Zero on succes
  */
-int int_to_netmask(int *numbits, ff_ip_t *mask)
+int int_to_netmask(int numbits, ff_ip_t *mask)
 {
 	int retval = 0;
-	if (*numbits > 128 || *numbits < 0) {
-        *numbits = 128; retval = 1;
+	if (numbits > 128 || numbits < 0) {
+        retval = 1;
     }
 
 	int x;
-	for (x = 0; x < (*numbits >> 5); x++) {
+	for (x = 0; x < (numbits >> 5); x++) {
 		mask->data[x] = ~0U;
 	}
 
 	if (x < 4) {
 		uint32_t bitmask = ~0U;
-		mask->data[x] = htonl(~(bitmask >> (*numbits & 0x1f)));
+		mask->data[x] = htonl(~(bitmask >> (numbits & 0x1f)));
 	}
 	return retval;
 }
 
 /**
  * \brief Pad necessary zeros to shortened ipv4 address to make it valid.
- * \param ip_str  Shortened ip string
+ * \param[in] ip_str  Shortened ip string
  * \param numbits Number of network portion bits
  * \return Autocompleted network address in new string (must be freed) \see strdup
  */
@@ -491,7 +487,7 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 			}
 		} else {
 			// for ip v6 require ::0 if address is shortened;
-			if (int_to_netmask(&numbits, &(ptr->mask))) {
+			if (int_to_netmask(numbits, &(ptr->mask))) {
                 ff_set_error(filter, "Conversion failed, invalid form of address/bits \"%s\"", str);
 				free(ptr);
 				free(ip_str);
@@ -955,6 +951,7 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 
 			// Now process all items
 			do {
+                //TODO: ff_type_cast_list(){
 				// Copy type and field or original
 				elem->type = node->type;
 				elem->field = node->field;
@@ -964,7 +961,6 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 				if(err == FF_OK) {
 					elem = elem->right;
 				} else {
-                    ff_set_error(filter, "Failed to allocate node!");
 					ff_free_node(node);
 					retval = NULL;
 					break;
@@ -972,6 +968,9 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 				free(tmp);
 			} while (elem);
 
+            if (retval == NULL) {
+                break;
+            }
 			node->left = NULL;
 
 		// Normal behavior, convert one value

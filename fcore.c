@@ -241,7 +241,7 @@ ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* inf
 int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 {
 	const ff_val_t* const fl = (ff_val_t*)node->value; // filter node data
-	const ff_rec_t* const rc = (ff_rec_t*) buf; // record data
+	const ff_rec_t* const rc = (ff_rec_t*)buf; // record data
 	ff_rec_t hord; //Host byte order converted value
 
 	// Get this shit going fist integer then string etc...
@@ -425,10 +425,10 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		return rc->real < fl->real;
 
 	case FFAT_EQ_STR:
-		return !strncmp(&rc->str, &fl->str, node->vsize);
+		return !strncmp(&rc->str[0], &fl->str[0], node->vsize);
 	case FFAT_IS_STR:
         // Make it safe
-		return strcasestr(&rc->str, &fl->str) != NULL;
+		return strcasestr(&rc->str[0], &fl->str[0]) != NULL;
 
 	case FFAT_EQ_MAC:
 		return !memcmp(&rc->ui, &fl->ui, sizeof(ff_mac_t));
