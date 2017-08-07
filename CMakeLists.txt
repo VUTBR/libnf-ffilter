@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 2.8.8)
 project(nffilter)
 
 set(NF_FILTER_DESCRIPTION, "Interpreter of filtering language with support for multiple types")
+
+set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} -Wall  -std=gnu++11")
+set(CMAKE_CXX_FLAGS_DEBUG   "-g -O0 -Wextra -pedantic")
+
 set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} -Wall -std=gnu11")
 set(CMAKE_C_FLAGS_RELEASE   "-O3")
 set(CMAKE_C_FLAGS_DEBUG     "-g -O0 -Wextra -pedantic")
@@ -15,8 +19,13 @@ set(nf_filter_VERSION_MINOR 0)
 
 set(SOURCES ${SOURCES} "ffilter.c")
 set(SOURCES ${SOURCES} "fcore.c")
+set(SOURCES ${SOURCES} "ffilter_internal.h")
 set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_gram.c")
 set(SOURCES ${SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/ffilter_lex.c")
+
+#set(SOURCES ${SOURCES} "tests/ipx_core_perf.cpp")
+#set(SOURCES ${SOURCES} "tests/ipx_filter_convertors.cpp")
+#set(SOURCES ${SOURCES} "tests/ipx_filter_data_types.cpp")
 
 #pass cmake settings
 configure_file(
@@ -94,7 +103,7 @@ add_executable(str_convertors tests/ipx_filter_convertors.cpp)
 target_link_libraries(str_convertors
         nf_filter
         gtest_main)
-#add_test(NAME str_convertors_test COMMAND str_convertors)
+add_test(NAME str_convertors_test COMMAND str_convertors)
 
 add_test(NAME data_types_prof_test COMMAND valgrind --tool=callgrind data_types)
 

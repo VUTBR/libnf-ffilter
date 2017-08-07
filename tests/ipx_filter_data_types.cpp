@@ -75,16 +75,15 @@ struct mock_rec {
 /**
  * \brief Mockup lookup func callback to test all ffilter supported data types
  * Lookup func sets lvalue of field according to first letter of valstr and
- * @param filter
- * @param valstr Name of field
- * @param lvalue
- * @return FF_OK on success
+ * \param filter
+ * \param valstr Name of field
+ * \param lvalue
+ * \return FF_OK on success
  */
 ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_t *lvalue)
 {
 	ff_type_t type;
 	ff_extern_id_t id;
-	id.index = valstr[0];
 
 	lvalue->id[0].index = FLD_NONE;
 	lvalue->options = FF_OPTS_NONE;
@@ -204,12 +203,12 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
  * \breif Mockup data func callback to test all ffilter supported data types
  * Test data func selects data from record based on external identification,
  * which was set by lookup callback \see test_lookup_func
- * @param filter
- * @param rec   test_record reference
- * @param extid Ident. of field
- * @param buf   Pointer to data is passed in this variable.
- * @param size  Length of selected data
- * @return FF_OK on data copied
+ * \param filter
+ * \param rec   test_record reference
+ * \param extid Ident. of field
+ * \param buf   Pointer to data is passed in this variable.
+ * \param size  Length of selected data
+ * \return FF_OK on data copied
  */
 ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid, char** buf, size_t *size)
 {
@@ -289,30 +288,28 @@ ff_error_t test_data_func (struct ff_s *filter, void *rec, ff_extern_id_t extid,
  * tenBelow -> -10
  * megabyte -> 1024*1024
  *
- * @param filter
- * @param valstr Literal
- * @param test_type Data type of field
- * @param extid	Field identification
- * @param buf Translated data are copied here
- * @param size Length of data copied
- * @return FF_OK on successfull translation
+ * \param filter
+ * \param valstr Literal
+ * \param test_type Data type of field
+ * \param extid	Field identification
+ * \param buf Translated data are copied here
+ * \param size Length of data copied
+ * \return FF_OK on successfull translation
  */
-ff_error_t test_rval_map_func (struct ff_s * filter, const char *valstr, ff_type_t test_type, ff_extern_id_t extid, char* buf, size_t *size)
+ff_error_t test_rval_map_func (struct ff_s *filter, const char *valstr, ff_type_t type, ff_extern_id_t id, char *buf, size_t *size)
 {
-	if (test_type == FF_TYPE_SIGNED || test_type == FF_TYPE_UNSIGNED || test_type == FF_TYPE_INT16) {
-		if (!strcmp(valstr, "magic_number")) {
-			*(uint64_t *) buf = 6996;
-			*size = sizeof(uint64_t);
-		} else if (!strcmp(valstr, "kilobyte")) {
-			*(uint64_t *) buf = 1000;
-			*size = sizeof(uint64_t);
-		} else {
-			*size = 0;
-			return FF_ERR_OTHER;
-		}
+	if (!strcmp(valstr, "magic_number")) {
+		*(uint64_t *) buf = 6996;
+		*size = sizeof(uint64_t);
 		return FF_OK;
+	} else if (!strcmp(valstr, "kilobyte")) {
+		*(uint64_t *) buf = 1000;
+		*size = sizeof(uint64_t);
+		return FF_OK;
+	} else {
+		*size = 0;
+		return FF_ERR_OTHER;
 	}
-	return FF_ERR_OTHER;
 }
 
 
@@ -407,7 +404,6 @@ protected:
 };
 
 
-
 // Left associable, priotrities 1.NEG 2.AND, 3.OR
 // Use brackets to modify
 TEST_F(filter_types_test, Logic_expressions)
@@ -457,6 +453,13 @@ TEST_F(filter_types_test, Multinode_eval)
 	fillInt64_2(0);
 	EXPECT_FALSE(eval(&rec)); //None of both matches - should fail
 	// Cleanup is automatic
+}
+
+TEST_F(filter_types_test, After_error_reinit)
+{
+    ASSERT_NE(FF_OK, init("int in [ 10, badinput, 11, 12]"));
+
+    ASSERT_EQ(FF_OK, init("int in [ 10, -10 ]"));
 }
 
 TEST_F(filter_types_test, coma_separator_in_list)
