@@ -377,14 +377,19 @@ protected:
 		else {rec.addr[0] = 0;}
 	}
 
-	void fillMAC(char val1, char val2, char val3, char val4, char val5, char val6) {
-		rec.mac[0]=val1;
-		rec.mac[1]=val2;
-		rec.mac[2]=val3;
-		rec.mac[3]=val4;
-		rec.mac[4]=val5;
-		rec.mac[5]=val6;
+	void fillMAC(int val1, int val2, int val3, int val4, int val5, int val6) {
+		rec.mac[0] = (uint8_t)val1;
+		rec.mac[1] = (uint8_t)val2;
+		rec.mac[2] = (uint8_t)val3;
+		rec.mac[3] = (uint8_t)val4;
+		rec.mac[4] = (uint8_t)val5;
+		rec.mac[5] = (uint8_t)val6;
 	}
+
+    void fillMAC(const char* val) {
+        memcpy(&rec.mac[0], val, 6);
+    }
+
 	void fillMPLS(const char* val) {
 		memcpy(rec.mpls, val, 40);
 	}
@@ -655,6 +660,7 @@ TEST_F(filter_types_test, mac)
 {
 	ASSERT_EQ(FF_OK, init("mac aa:bb:cc:dd:ee:ff"));
 	fillMAC(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff);
+    //fillMAC("\xaa\xbb\xcc\xdd\xee\xff\x00");
 	EXPECT_TRUE(eval(&rec));
 
 	ASSERT_EQ(FF_OK, init("mac 01:23:45:56:67:89"));

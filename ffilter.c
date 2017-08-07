@@ -398,7 +398,7 @@ int int_to_netmask(int numbits, ff_ip_t *mask)
 /**
  * \brief Pad necessary zeros to shortened ipv4 address to make it valid.
  * \param[in] ip_str  Shortened ip string
- * \param numbits Number of network portion bits
+ * \param     numbits Number of network portion bits
  * \return Autocompleted network address in new string (must be freed) \see strdup
  */
 char* unwrap_ip(char *ip_str, int numbits)
@@ -406,6 +406,7 @@ char* unwrap_ip(char *ip_str, int numbits)
 	char *endptr = ip_str;
 	char suffix[8] = {0};
 	int octet = 0;
+
 	/* Check for required octets, note that inet_pton does the job of conversion
 	   this is just to allow shortened notation of ip addresses eg 172.168/16 */
 
@@ -423,11 +424,16 @@ char* unwrap_ip(char *ip_str, int numbits)
 		strcat(suffix, ".0");
 	}
 
-	char *ip = strdup(ip_str);
-	ip = realloc(ip, strlen(ip_str)+strlen(suffix)+1);
-	if (ip) {
-		strcat(ip, suffix);
-	}
+	char *ip = NULL;
+    size_t size;
+	ip = malloc(size = (strlen(ip_str)+strlen(suffix)+1));
+
+    if (ip == NULL) {
+        return NULL;
+    }
+
+    snprintf(ip, size, "%s%s", ip_str, suffix);
+
 	return ip;
 }
 
@@ -439,6 +445,7 @@ char* unwrap_ip(char *ip_str, int numbits)
  * \param size   Size of memory allocated for result
  * \return Zero on success
  */
+//TODO: solve error blending...
 int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 {
 	ff_net_t *ptr;
@@ -485,6 +492,7 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 				free(ip_str);
 				return 1;
 			}
+        // Convert number to fill mask
 		} else {
 			// for ip v6 require ::0 if address is shortened;
 			if (int_to_netmask(numbits, &(ptr->mask))) {
@@ -594,7 +602,6 @@ int str_to_timestamp(ff_t *filter, char* str, char** res, size_t *size)
 	struct tm tm;
 	ff_timestamp_t timest;
 
-    // FIXME: Some better function ? This causes implicit declaration
 	if (strptime(str, "%F%n%T", &tm) == NULL) {
         ff_set_error(filter, "Conversion failed, bad characters in timestamp \"%s\"", str);
 		return 1;
@@ -747,7 +754,7 @@ ff_error_t ff_type_cast(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t
 }
 
 ff_error_t ff_type_validate(yyscan_t *scanner, ff_t *filter, char *valstr, ff_node_t* node,
-                            ff_lvalue_t* info)
+    ff_lvalue_t* info)
 {
 	ff_error_t retval;
 	ff_attr_t valid;
@@ -759,7 +766,7 @@ ff_error_t ff_type_validate(yyscan_t *scanner, ff_t *filter, char *valstr, ff_no
 	if ((valid = ff_validate((ff_type_t)node->type, node->oper, node->value, info)) == FFAT_ERR) {
 
 		ff_set_error(filter, "Semantic error: Operator %s is not valid for type %s",
-                ff_oper_str[node->oper], ff_type_str[node->type]);
+            ff_oper_str[node->oper], ff_type_str[node->type]);
 
 		return FF_ERR_OTHER_MSG;
 	}
@@ -789,49 +796,71 @@ const char* ff_error(ff_t *filter, const char *buf, int buflen)
 /**
  * \brief Build node tree with leaf nodes for each ff_external_id
  * \param[in] node - leaf used as template
- * \param oper - FF_OP_AND or FF_OP_OR defines how structure will evaluate \see ff_oper_t
+ * \param     oper - FF_OP_AND or FF_OP_OR defines how structure will evaluate \see ff_oper_t
  * \param[in] lvalue - Info about field
  * \return Root node of new subtree or NULL on error
  */
 ff_node_t* ff_branch_node(ff_node_t *node, ff_oper_t oper, ff_lvalue_t* lvalue)
 {
-	//TODO: harden against memory faults
-	ff_node_t *dup[FF_MULTINODE_MAX] = {0};
-	//int err = 0;
-	int x = 0;
-	dup[0] = node;
+	ff_node_t *leaf[FF_MULTINODE_MAX] = {NULL};
+    ff_node_t *trunk[FF_MULTINODE_MAX] = {NULL};
+	int err;
+    int forked;
 
-	for (x = 1;(x < FF_MULTINODE_MAX && lvalue->id[x].index); x++) {
-		dup[x] = ff_duplicate_node(node);
-		if (dup[x]) {
-			dup[x]->field = lvalue->id[x];
+    err = 0;
+    forked = 1;
+    /// Save template node
+	leaf[0] = node;
+
+	for (int x = 1; (x < FF_MULTINODE_MAX && lvalue->id[x].index); x++) {
+        leaf[x] = NULL;
+		leaf[x] = ff_duplicate_node(node);
+		if (leaf[x]) {
+			leaf[x]->field = lvalue->id[x];
+            forked++;
 		} else {
-			//err = 1;
+			err = 1;
 			;
 		}
 	}
 
-	while (x > 1) {
-		int i;
-		for (i = 0; i < x; i+=2) {
-			node = ff_new_node(NULL, NULL, dup[i], oper, dup[i+1]);
+    if (err) {
+        for (int x = 0; (x < FF_MULTINODE_MAX && lvalue->id[x].index); x++) {
+            ff_free_node(leaf[x]);
+        }
+        return NULL;
+    }
+
+    /// Build tree
+	while (forked > 1) {
+		for (int i = 0; i < forked; i += 2) {
+			node = ff_new_node(NULL, NULL, leaf[i], oper, leaf[i+1]);
 			if (!node) {
-				ff_free_node(dup[i]);
-				ff_free_node(dup[i+1]);
+                /* Failed to create new node, kill also children, tree structure however is
+                   preserved for later full free */
+				ff_free_node(leaf[i]);
+				ff_free_node(leaf[i+1]);
+                err = 1;
 			}
-			dup[i >> 1] = node;
+			leaf[i >> 1] = node;
 		}
-		x = x >> 1;
+		forked = forked >> 1;
 	}
 
-	return dup[0];
+    if (err) {
+        /// Free form root of newly allocated subtree if error occured
+        ff_free_node(leaf[0]);
+        return NULL;
+    }
+
+	return leaf[0];
 }
 
 ff_node_t* ff_duplicate_node(ff_node_t* original)
 {
-
 	ff_node_t *copy, *lc, *rc;
-	lc = rc = NULL;
+	lc = NULL;
+    rc = NULL;
 
 	if (original->left) {
 		lc = ff_duplicate_node(original->left);
@@ -857,27 +886,65 @@ ff_node_t* ff_duplicate_node(ff_node_t* original)
 
 	memcpy(copy, original, sizeof(ff_node_t));
 
-	if (original->vsize) {
+	if (original->vsize > 0) {
 		copy->value = malloc(original->vsize);
-		copy->vsize = original->vsize;
 
-		if(copy->value) {
-			memcpy(copy->value, original->value, original->vsize);
+		if (!copy->value) {
+            copy->vsize = 0;
+            ff_free_node(copy);
+            return NULL;
 		} else {
-			ff_free_node(copy);
-			return NULL;
+            memcpy(copy->value, original->value, original->vsize);
 		}
 	}
+
 	copy->left = lc;
 	copy->right = rc;
 
 	return copy;
 }
 
+ff_node_t* ff_transform_mval(yyscan_t *scanner, ff_t* filter, ff_node_t *node, ff_node_t *list,
+    ff_lvalue_t* lvalue)
+{
+    void* tmp;
+    int err;
+
+    // Connect it to right subtree
+    node->right = list;
+    // Terminate other subtree, nothing should be there anyway
+    node->left = NULL;
+
+    // Now process all items
+    do {
+        // Copy type and field or original
+        list->type = node->type;
+        list->field = node->field;
+        // Cast stringstmp = list->value
+        tmp = list->value;
+        err = ff_type_validate(scanner, filter, list->value, list, lvalue);
+        if(err == FF_OK) {
+            list = list->right;
+        } else {
+            // Failed to transform data in mval list node, do not free them
+            list->vsize = 0;
+            free(tmp);
+            break;
+        }
+        // Free string from mval list
+        free(tmp);
+    } while (list);
+
+    if (err != FF_OK) {
+        return NULL;
+    }
+
+    return node;
+}
+
 /* Add leaf entry into expr tree */
 ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t oper, char *valstr)
 {
-
 	ff_node_t *node;
 	ff_node_t *retval;
 	ff_lvalue_t lvalue;
@@ -910,7 +977,6 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 
 	do { /* Break on error */
 		if (filter->options.ff_lookup_func(filter, fieldstr, &lvalue) != FF_OK) {
-
 			ff_set_error(filter, "Can't lookup field type for \"%s\"", fieldstr);
 			retval = NULL;
 			break;
@@ -940,38 +1006,13 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 
 		// If node contains in list
 		if (oper == FF_OP_IN) {
-			void* tmp;
-			int err = FF_OK;
-			// List is in value
-			ff_node_t *elem = (ff_node_t *)valstr;
 
-			// Connect it to right subtree
-			node->right = elem;
-			retval = node;
-
-			// Now process all items
-			do {
-                //TODO: ff_type_cast_list(){
-				// Copy type and field or original
-				elem->type = node->type;
-				elem->field = node->field;
-				elem->vsize = 0;
-				// Cast strings
-				err = ff_type_validate(scanner, filter, tmp = elem->value, elem, &lvalue);
-				if(err == FF_OK) {
-					elem = elem->right;
-				} else {
-					ff_free_node(node);
-					retval = NULL;
-					break;
-				}
-				free(tmp);
-			} while (elem);
-
+            retval = ff_transform_mval(scanner, filter, node, (ff_node_t*)valstr, &lvalue);
+            // Transformation failed
             if (retval == NULL) {
+                ff_free_node(node);
                 break;
             }
-			node->left = NULL;
 
 		// Normal behavior, convert one value
 		} else if (*valstr == 0 || (ff_type_validate(scanner, filter, valstr, node, &lvalue) != FF_OK)) {
@@ -996,9 +1037,9 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 		if (lvalue.id[1].index != 0) {
 			// Setup nodes in or configuration for pair fields (src/dst etc.)
 			ff_node_t* new_root;
-			new_root = ff_branch_node(node,
-									  root_oper == FF_OP_UNDEF ? FF_OP_OR : root_oper,
-									  &lvalue);
+			new_root = ff_branch_node(node, root_oper == FF_OP_UNDEF ? FF_OP_OR : root_oper,
+                &lvalue);
+
 			if (new_root == NULL) {
                 ff_set_error(filter, "Failed to allocate node!");
 				ff_free_node(node);
@@ -1034,6 +1075,7 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
 }
 
 /* add new item to list */
+//TODO: Solve leak from line 1090
 ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t oper, ff_node_t* nptr)
 {
 
@@ -1045,14 +1087,23 @@ ff_node_t* ff_new_mval(yyscan_t scanner, ff_t *filter, char *valstr, ff_oper_t o
         ff_set_error(filter, "Failed to allocate node!");
 		return NULL;
 	}
+    node->value = NULL;
 
 	node->vsize = strlen(valstr);
-	node->value = strdup(valstr);
+	node->value = (char*)malloc(sizeof(char) * (node->vsize + 1));
 	node->type = FF_TYPE_STRING;
 	node->oper = oper;
-
 	node->left = NULL;
 	node->right = nptr;
+
+    if (!node->value) {
+        ff_set_error(filter, "Failed to allocate node!");
+        node->vsize = 0;
+        ff_free_node(node);
+        return NULL;
+    }
+
+    snprintf(node->value, node->vsize + 1, "%s", valstr);
 
 	return node;
 }

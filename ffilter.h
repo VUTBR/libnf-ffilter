@@ -114,7 +114,7 @@ typedef int16_t ff_int16_t;
 typedef int32_t ff_int32_t;
 typedef int64_t ff_int64_t;
 typedef double ff_double_t;
-typedef char ff_mac_t[8];
+typedef char ff_mac_t[6];
 typedef uint64_t ff_timestamp_t;
 
 /**
