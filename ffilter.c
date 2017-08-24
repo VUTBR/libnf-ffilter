@@ -85,6 +85,66 @@ const char* ff_type_str[FF_TYPE_TERM_] = {
 
 };
 
+int64_t saturate_int(int64_t num, ff_type_t type)
+{
+    switch (type) {
+    case FF_TYPE_INT8:
+        if (num > INT8_MAX) {
+            num = INT8_MAX;
+        } else if (num < INT8_MIN) {
+            num = INT8_MIN;
+        }
+        break;
+
+    case FF_TYPE_INT16:
+        if (num > INT16_MAX) {
+            num = INT16_MAX;
+        } else if (num < INT16_MIN) {
+            num = INT16_MIN;
+        }
+        break;
+
+    case FF_TYPE_INT32:
+        if (num > INT32_MAX) {
+            num = INT32_MAX;
+        } else if (num < INT32_MIN) {
+            num = INT32_MIN;
+        }
+        break;
+
+    default:
+        break;
+    }
+    return num;
+}
+
+uint64_t saturate_uint(uint64_t num, ff_type_t type)
+{
+    switch (type) {
+    case FF_TYPE_UINT8:
+        if (num > UINT8_MAX) {
+            num = UINT8_MAX;
+        }
+        break;
+
+    case FF_TYPE_UINT16:
+        if (num > UINT16_MAX) {
+            num = UINT16_MAX;
+        }
+        break;
+
+    case FF_TYPE_UINT32:
+        if (num > UINT32_MAX) {
+            num = UINT32_MAX;
+        }
+        break;
+
+    default:
+        break;
+    }
+    return num;
+}
+
 /**
  * \brief Convert unit character to positive power of 10
  * \param[in] unit Suffix of number
@@ -212,7 +272,7 @@ int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsi
 {
 	uint64_t tmp64;
 	void *ptr;
-        int err=0;
+    int err = 0;
 
 	char* endptr;
         tmp64 = ff_strtoull(str, &endptr, &err);
@@ -223,9 +283,11 @@ int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsi
                 ff_set_error(filter, "Conversion failed, bad characters in \"%s\"", str);
             return 1;
         }
-	if (*endptr){
+	if (*endptr) {
 		return 1;
 	}
+
+    uint64_t val = tmp64;
 
 	switch (type) {
 	case FF_TYPE_UINT64:
@@ -233,18 +295,23 @@ int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsi
 		break;
 	case FF_TYPE_UINT32:
 		*vsize = sizeof(uint32_t);
-		tmp64 = (uint32_t)tmp64;
+        val = saturate_uint(tmp64, type);
 		break;
 	case FF_TYPE_UINT16:
 		*vsize = sizeof(uint16_t);
-		tmp64 = (uint16_t)tmp64;
+        val = saturate_uint(tmp64, type);
 		break;
 	case FF_TYPE_UINT8:
         *vsize = sizeof(uint8_t);
-		tmp64 = (uint8_t)tmp64;
+        val = saturate_uint(tmp64, type);
 		break;
 	default: return 1;
 	}
+
+    if (tmp64 != val) {
+        ff_set_error(filter, "Conversion failed, value \"%s\" out of range for type %s", str, ff_type_str[type]);
+        return 1;
+    }
 
 	ptr = malloc(*vsize);
 
@@ -252,9 +319,8 @@ int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsi
 		return 1;
 	}
 
-	memcpy(ptr, &tmp64, *vsize);
-
-	*res = ptr;
+    *res = ptr;
+    *((uint64_t *)ptr) = tmp64;
 
 	return 0;
 }
@@ -281,36 +347,42 @@ int str_to_int(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsiz
 		return 1;
 	}
 
+    int64_t val = tmp64;
+
 	switch (type) {
 	case FF_TYPE_INT64:
-		*vsize = sizeof(int64_t);
+		*vsize = sizeof(uint64_t);
 		break;
 	case FF_TYPE_INT32:
-		*vsize = sizeof(int32_t);
-		tmp64 = (int32_t)tmp64;
+		*vsize = sizeof(uint32_t);
+        val = saturate_int(tmp64, type);
 		break;
 	case FF_TYPE_INT16:
-		*vsize = sizeof(int16_t);
-		tmp64 = (int16_t)tmp64;
+		*vsize = sizeof(uint16_t);
+        val = saturate_int(tmp64, type);
 		break;
 	case FF_TYPE_INT8:
-		*vsize = sizeof(int8_t);
-		tmp64 = (int8_t)tmp64;
+        *vsize = sizeof(uint8_t);
+        val = saturate_int(tmp64, type);
 		break;
 	default: return 1;
 	}
 
-	ptr = malloc(*vsize);
+    if (tmp64 != val) {
+        ff_set_error(filter, "Conversion failed, value \"%s\" out of range for type %s", str, ff_type_str[type]);
+        return 1;
+    }
 
-	if (ptr == NULL) {
-		return 1;
-	}
+    ptr = malloc(*vsize);
 
-	memcpy(ptr, &tmp64, *vsize);
+    if (ptr == NULL) {
+        return 1;
+    }
 
-	*res = ptr;
+    *res = ptr;
+    *((int64_t *)ptr) = tmp64;
 
-	return 0;
+    return 0;
 }
 
 int str_to_uint64(ff_t *filter, char *str, char **res, size_t *vsize)
@@ -363,8 +435,7 @@ int str_to_real(ff_t *filter, char *str, char **res, size_t *vsize)
 		return 1;
 	}
 
-	memcpy(ptr, &tmp64, *vsize);
-
+    *((double*) ptr) = tmp64;
 	*res = ptr;
 
 	return 0;
@@ -616,9 +687,9 @@ int str_to_timestamp(ff_t *filter, char* str, char** res, size_t *size)
 
 	timest *= 1000;
 
-	memcpy(ptr, &timest, sizeof(ff_timestamp_t));
+    *size = sizeof(ff_timestamp_t);
+    *((ff_timestamp_t *) ptr) = timest;
 	*res = ptr;
-	*size = sizeof(ff_timestamp_t);
 
 	return 0;
 }
@@ -788,7 +859,6 @@ va_list args;
 /* get error string */
 const char* ff_error(ff_t *filter, const char *buf, int buflen)
 {
-
 	strncpy((char *)buf, filter->error_str, buflen - 1);
 	return buf;
 }
@@ -1015,23 +1085,34 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
             }
 
 		// Normal behavior, convert one value
-		} else if (*valstr == 0 || (ff_type_validate(scanner, filter, valstr, node, &lvalue) != FF_OK)) {
+		} else if (*valstr == '\0' || (ff_type_validate(scanner, filter, valstr, node, &lvalue) != FF_OK)) {
 
 			if (oper == FF_OP_EXIST) {
 				// OP exist does not need value
                 ;
-			} else if (lvalue.literal && lvalue.options & FF_OPTS_CONST
-                && (ff_type_validate(scanner, filter, (char*)lvalue.literal, node, &lvalue) == FF_OK)) {
-				// Also pass if for constant there is a default value
+			} else if (lvalue.options & FF_OPTS_CONST) {
+                // Also pass if for constant there is a default value
+                if (lvalue.literal == NULL) {
+                    ff_set_error(filter, "No constant set for field \"%s\"", fieldstr);
+                    ff_free_node(node);
+                    retval = NULL;
+                    break;
+                }
+                if (ff_type_validate(scanner, filter, (char *)lvalue.literal, node, &lvalue) != FF_OK) {
+                    char errstr[32];
+                    ff_set_error(filter, "Constant conversion failed for field \"%s\", %s", fieldstr,
+                        ff_error(filter, errstr, 32 ));
+                    ff_free_node(node);
+                    retval = NULL;
+                    break;
+                }
                 ;
 			} else {
+                ff_set_error(filter, "Value missing and leaf is not of type EXIST nor has assigned constant", fieldstr);
+                ff_free_node(node);
 				retval = NULL;
-				ff_free_node(node);
 				break;
 			}
-
-			node->left = NULL;
-			node->right = NULL;
 		}
 
 		if (lvalue.id[1].index != 0) {

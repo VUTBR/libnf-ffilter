@@ -143,8 +143,20 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
 		lvalue->id[0].index = FLD_NUMBER16;
 
 	} else if (!strcmp(valstr, "i8")) {
-		type = FF_TYPE_INT8;
-		lvalue->id[0].index = FLD_NUMBER8;
+        type = FF_TYPE_INT8;
+        lvalue->id[0].index = FLD_NUMBER8;
+
+    } else if (!strcmp(valstr, "realeq10")) {
+        type = FF_TYPE_DOUBLE;
+        lvalue->id[0].index = FLD_REAL;
+        lvalue->options = FF_OPTS_CONST;
+        lvalue->literal = "10.0";
+
+	} else if (!strcmp(valstr, "constfail")) {
+        type = FF_TYPE_DOUBLE;
+        lvalue->id[0].index = FLD_REAL;
+        lvalue->options = FF_OPTS_CONST;
+        lvalue->literal = NULL;
 
 	} else if (!strcmp(valstr, "real")) {
 		type = FF_TYPE_DOUBLE;
@@ -772,6 +784,18 @@ TEST_F(filter_types_test, real)
 	EXPECT_NE(FF_OK, init("real #@!$"));
 	EXPECT_NE(FF_OK, init("real \x01\x10\x13"));
 	EXPECT_NE(FF_OK, init("real in [ 10.1 invalid ]"));
+}
+
+TEST_F(filter_types_test, decode_constant)
+{
+    ASSERT_EQ(FF_OK, init("realeq10"));
+    fillReal(10.0);
+    EXPECT_TRUE(eval(&rec));
+    fillReal(11.0);
+    EXPECT_FALSE(eval(&rec));
+
+    ASSERT_NE(FF_OK, init("constfail"));
+    EXPECT_STRNE("No Error.", ff_error(filter, buffer, FF_MAX_STRING));
 }
 
 // Mpls uses same input routine for all three subtypes

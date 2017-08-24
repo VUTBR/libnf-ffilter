@@ -62,27 +62,69 @@ protected:
         ff_free(filter);
 	}
 
-	void convert_int(int64_t expect, char* valstr, ff_type_t int_size)
+
+    void fail_convert_int(const char* valstr, ff_type_t int_size)
+    {
+        ASSERT_TRUE(str_to_int(filter, const_cast<char*>(valstr), int_size, &ptr, &size));
+    }
+
+    void convert_int(int64_t expect, const char* valstr, ff_type_t int_size)
+    {
+        ASSERT_FALSE(str_to_int(filter, const_cast<char*>(valstr), int_size, &ptr, &size)) << "Failed to convert \""
+                    << valstr << "\" to int";
+        // Data has correct length
+        // And compare results
+        switch(size) {
+        case FF_TYPE_INT64:
+            EXPECT_EQ(sizeof(int64_t), size);
+            EXPECT_EQ(expect, *((int64_t *) ptr));
+            break;
+        case FF_TYPE_INT32:
+            EXPECT_EQ(sizeof(int32_t), size);
+            EXPECT_EQ(expect, *((int32_t *) ptr));
+            break;
+        case FF_TYPE_INT16:
+            EXPECT_EQ(sizeof(int16_t), size);
+            EXPECT_EQ(expect, *((int16_t *) ptr));
+            break;
+        case FF_TYPE_INT8:
+            EXPECT_EQ(sizeof(int8_t), size);
+            EXPECT_EQ(expect, *((int8_t *) ptr));
+            break;
+        }
+        free(ptr);
+        return;
+    }
+
+    void fail_convert_uint(const char* valstr, ff_type_t int_size)
+    {
+        ASSERT_TRUE(str_to_uint(filter, const_cast<char*>(valstr), int_size, &ptr, &size));
+    }
+
+	void convert_uint(uint64_t expect, const char* valstr, ff_type_t uint_size)
 	{
-		ASSERT_FALSE(str_to_int(filter, valstr, int_size, &ptr, &size)) << "Failed to convert \""
-																	  << valstr << "\" to int";
-		//Data has correct length
-		EXPECT_EQ(sizeof(int64_t), size) << "Size mismatch \""
-										 << valstr << "\"";
-		//And compare results
-		EXPECT_EQ(expect, *((int64_t *) ptr)) << "Unexpected result of conversion";
-		free(ptr);
-		return;
-	}
-	void convert_uint(uint64_t expect, char* valstr, ff_type_t uint_size)
-	{
-		ASSERT_FALSE(str_to_uint(filter, valstr, uint_size, &ptr, &size)) << "Failed to convert \""
+		ASSERT_FALSE(str_to_uint(filter, const_cast<char*>(valstr), uint_size, &ptr, &size)) << "Failed to convert \""
 																		<< valstr << "\" to unsigned int";
-		//Data has correct length
-		EXPECT_EQ(sizeof(uint64_t), size) << "Size mismatch \""
-										  << valstr << "\"";
-		//And compare results
-		EXPECT_EQ(expect, *((uint64_t *) ptr)) << "Unexpected result of conversion";
+		// Data has correct length
+        // And compare results
+        switch(size) {
+        case FF_TYPE_UINT64:
+            EXPECT_EQ(sizeof(uint64_t), size);
+            EXPECT_EQ(expect, *((uint64_t *) ptr));
+            break;
+        case FF_TYPE_UINT32:
+            EXPECT_EQ(sizeof(uint32_t), size);
+            EXPECT_EQ(expect, *((uint32_t *) ptr));
+            break;
+        case FF_TYPE_UINT16:
+            EXPECT_EQ(sizeof(uint16_t), size);
+            EXPECT_EQ(expect, *((uint16_t *) ptr));
+            break;
+        case FF_TYPE_UINT8:
+            EXPECT_EQ(sizeof(uint8_t), size);
+            EXPECT_EQ(expect, *((uint8_t *) ptr));
+            break;
+        }
 		free(ptr);
 		return;
 	}
@@ -277,8 +319,10 @@ TEST_F(str_to_number_test, unsigned_invalid_number_conversion) {
 
 /**
  * Large numbers are trimmed to max range if string contains too bg number
+ *
+ * NOT relevant any more, see unsigned_range tests
  */
-TEST_F(str_to_number_test, unsigned_large_number_trimm) {
+/*TEST_F(str_to_number_test, unsigned_large_number_trimm) {
 
 	char number[] = "18446744073709551615";
 
@@ -289,7 +333,7 @@ TEST_F(str_to_number_test, unsigned_large_number_trimm) {
 
 	EXPECT_EQ(UINT32_MAX, *((uint32_t *)ptr));
 
-}
+}*/
 
 /**
  * Max range check for signed integers
@@ -450,4 +494,55 @@ TEST_F(str_to_number_test, invalid_real) {
 	x = str_to_real(filter, const_cast<char*>("092238.39ffs.e"), &ptr, &size);
 	EXPECT_TRUE(x);
 	if (!x) free(ptr);
+}
+
+TEST_F(str_to_number_test, signed_ranges) {
+    convert_int(INT8_MIN, "-128", FF_TYPE_INT8);
+    convert_int(INT8_MAX, "127", FF_TYPE_INT8);
+    convert_int(0, "0", FF_TYPE_INT8);
+
+    fail_convert_int("-129", FF_TYPE_INT8);
+    fail_convert_int("128", FF_TYPE_INT8);
+
+    convert_int(INT16_MIN, "-32768", FF_TYPE_INT16);
+    convert_int(INT16_MAX, "32767", FF_TYPE_INT16);
+    convert_int(0, "0", FF_TYPE_INT16);
+
+    fail_convert_int("-32769", FF_TYPE_INT16);
+    fail_convert_int("32768", FF_TYPE_INT16);
+
+    convert_int(INT32_MIN, "-2147483648", FF_TYPE_INT32);
+    convert_int(INT32_MAX, "2147483647", FF_TYPE_INT32);
+    convert_int(0, "0", FF_TYPE_INT32);
+
+    fail_convert_int("-2147483649", FF_TYPE_INT32);
+    fail_convert_int("2147483648", FF_TYPE_INT32);
+
+    convert_int(INT64_MIN, "-9223372036854775808", FF_TYPE_INT64);
+    convert_int(INT64_MAX, "9223372036854775807", FF_TYPE_INT64);
+    convert_int(0, "0", FF_TYPE_INT64);
+
+    fail_convert_int("-9223372036854775809", FF_TYPE_INT64);
+    fail_convert_int("9223372036854775808", FF_TYPE_INT64);
+}
+
+TEST_F(str_to_number_test, unsigned_ranges) {
+
+    convert_uint(UINT8_MAX, "255", FF_TYPE_UINT8);
+    fail_convert_uint("-1", FF_TYPE_UINT8);
+    fail_convert_uint("256", FF_TYPE_UINT8);
+
+    convert_uint(UINT16_MAX, "65535", FF_TYPE_UINT16);
+    fail_convert_uint("-1", FF_TYPE_UINT16);
+    fail_convert_uint("-65336", FF_TYPE_UINT16);
+    fail_convert_uint("65536", FF_TYPE_UINT16);
+
+    convert_uint(UINT32_MAX, "4294967295", FF_TYPE_UINT32);
+    fail_convert_uint("-1", FF_TYPE_UINT32);
+    fail_convert_uint("4294967296", FF_TYPE_UINT32);
+
+    convert_uint(UINT64_MAX, "18446744073709551615", FF_TYPE_UINT64);
+    fail_convert_uint("-1", FF_TYPE_UINT64);
+    fail_convert_uint("-9223372036854775809", FF_TYPE_UINT64);
+    fail_convert_uint("18446744073709551616", FF_TYPE_UINT64);
 }
