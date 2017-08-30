@@ -320,7 +320,24 @@ int str_to_uint(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsi
 	}
 
     *res = ptr;
-    *((uint64_t *)ptr) = tmp64;
+
+    switch (type) {
+    case FF_TYPE_UINT64:
+        *((uint64_t *) ptr) = tmp64;
+        break;
+    case FF_TYPE_UINT32:
+        *((uint32_t *) ptr) = tmp64;
+        break;
+    case FF_TYPE_UINT16:
+        *((uint16_t *) ptr) = tmp64;
+        break;
+    case FF_TYPE_UINT8:
+        *((uint8_t *) ptr) = tmp64;
+        break;
+    default:
+        free(ptr);
+        return 1;
+    }
 
 	return 0;
 }
@@ -380,7 +397,24 @@ int str_to_int(ff_t *filter, char *str, ff_type_t type, char **res, size_t *vsiz
     }
 
     *res = ptr;
-    *((int64_t *)ptr) = tmp64;
+
+    switch (type) {
+    case FF_TYPE_INT64:
+        *((int64_t *) ptr) = tmp64;
+        break;
+    case FF_TYPE_INT32:
+        *((int32_t *) ptr) = tmp64;
+        break;
+    case FF_TYPE_INT16:
+        *((int16_t *) ptr) = tmp64;
+        break;
+    case FF_TYPE_INT8:
+        *((int8_t *) ptr) = tmp64;
+        break;
+    default:
+        free(ptr);
+        return 1;
+    }
 
     return 0;
 }
@@ -521,7 +555,7 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 {
 	ff_net_t *ptr;
 	char *saveptr;
-	char *ip_str = strdup(str);
+
 	char *ip;
 	char *mask;
     // Guess ip version
@@ -529,8 +563,12 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 
 	int numbits;
 
+    char *ip_str = strdup(str);
 	ptr = malloc(sizeof(ff_net_t));
 
+    if (ip_str == NULL) {
+        return 1;
+    }
 	if (ptr == NULL) {
 		return 1;
 	}
@@ -873,7 +911,6 @@ const char* ff_error(ff_t *filter, const char *buf, int buflen)
 ff_node_t* ff_branch_node(ff_node_t *node, ff_oper_t oper, ff_lvalue_t* lvalue)
 {
 	ff_node_t *leaf[FF_MULTINODE_MAX] = {NULL};
-    ff_node_t *trunk[FF_MULTINODE_MAX] = {NULL};
 	int err;
     int forked;
 
@@ -1108,7 +1145,6 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
                 }
                 ;
 			} else {
-                ff_set_error(filter, "Value missing and leaf is not of type EXIST nor has assigned constant", fieldstr);
                 ff_free_node(node);
 				retval = NULL;
 				break;
