@@ -384,9 +384,18 @@ protected:
 	}
 	void fillIP(const char* val)
 	{
-		if (inet_pton(AF_INET, val, &rec.addr[3])) {}
+		if (inet_pton(AF_INET, val, &rec.addr[3])) {
+            rec.addr[0] = 0;
+            rec.addr[1] = 0;
+            rec.addr[2] = 0;
+        }
 		else if (inet_pton(AF_INET6, val, &rec.addr[0])) {}
-		else {rec.addr[0] = 0;}
+		else {
+            rec.addr[0] = 0;
+            rec.addr[1] = 0;
+            rec.addr[2] = 0;
+            rec.addr[3] = 0;
+        }
 	}
 
 	void fillMAC(int val1, int val2, int val3, int val4, int val5, int val6) {
@@ -605,6 +614,12 @@ TEST_F(filter_types_test, ip_addr)
 	fillIP("192.168.0.230");
 	EXPECT_TRUE(eval(&rec));
 
+    ASSERT_EQ(FF_OK, init("addr 195.113/16"));
+    fillIP("2001:4118:10:4000:7886:21:0d:bcf9:b32f");
+    EXPECT_FALSE(eval(&rec));
+    fillIP("195.113.0.230");
+    EXPECT_TRUE(eval(&rec));
+
 	//Mixed types in KW - exact and prefix
 	ASSERT_EQ(FF_OK, init("addr in [192.168.0.1 10.10/16 172.16.8/24]"));
 	fillIP("10.10.10.1");
@@ -642,6 +657,18 @@ TEST_F(filter_types_test, ip_addr)
 	EXPECT_TRUE(eval(&rec));
 	fillIP("2008:609::50:1");
 	EXPECT_FALSE(eval(&rec));
+
+    ASSERT_EQ(FF_OK, init("addr 2008:608::0/ 16"));
+    fillIP("2008:608::50:1");
+    EXPECT_TRUE(eval(&rec));
+    fillIP("2008:609::50:1");
+    EXPECT_TRUE(eval(&rec));
+    fillIP("32.0.0.0");
+    EXPECT_FALSE(eval(&rec));
+
+    ASSERT_EQ(FF_OK, init("addr 2008:608::0/ 4"));
+    fillIP("32.0.0.0");
+    EXPECT_FALSE(eval(&rec));
 
 	ASSERT_EQ(FF_OK, init("addr 2008:0:0:0:0:0:0:2"));
 	fillIP("2008:0:0:0:0:0:0:2");

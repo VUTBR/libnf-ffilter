@@ -628,7 +628,7 @@ int str_to_addr(ff_t *filter, char *str, char **res, size_t *size)
 		ptr->mask.data[1] = 0;
 		ptr->mask.data[2] = 0;
 		ptr->ver = 4;
-	} else if (inet_pton(AF_INET6, ip_str, &ptr->ip) && (ip_ver != 4)) {
+	} else if (inet_pton(AF_INET6, ip_str, &ptr->ip)) {
 		ptr->ver = 6;
 	} else {
         ff_set_error(filter, "Conversion failed, bad character in address \"%s\"", str);

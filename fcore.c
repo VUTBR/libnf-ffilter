@@ -434,34 +434,55 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		return !memcmp(&rc->str[0], &fl->str[0], sizeof(ff_mac_t));
 
 	case FFAT_EQ_AD4:
+        // Recieved short v4
 		if (size == 4)
 			return (rc->ip.data[0] == fl->net.ip.data[3]);
+		// Recieved v4 or v6, cells 0-2 must be zero to match
 		return	!rc->ip.data[0] &&
-				!rc->net.ip.data[1] &&
-				!rc->net.ip.data[2] &&
-		        (rc->ip.data[0] == fl->net.ip.data[3]);
+				!rc->ip.data[1] &&
+				!rc->ip.data[2] &&
+		        (rc->ip.data[3] == fl->net.ip.data[3]);
 
 	case FFAT_EQ_AD6:
+        // Fails, cant compare v4 to v6
 		if (size == 4)
 			return 0;
+        // Recieved v4 or v6, since network portion of ipv6 is nonzero, v4 fails
 		return !memcmp(&rc->ip, fl->ip.data, sizeof(ff_ip_t)); //Exact compare
 
-	case FFAT_EQ_ADP:    //Prefix eval
-		if (size == 4) { //realign to 16B
-			memset(&hord.ip, 0, sizeof(ff_ip_t));
-			hord.ip.data[3] = rc->ip.data[0];
+    // Prefix eval
+    case FFAT_EQ_ADP:
+        // realign to 16B
+		if (size == 4) {
 
 			res = 1;
-			for (x = 0; x < 4; x++)
-				res &= ((hord.ip.data[x] & fl->net.mask.data[x])
-				        == fl->net.ip.data[x]);
+            if (fl->net.ver == 6) {
+                // If ipv6 mask fail immediately
+                return 0;
+            }
+
+            res = ((rc->ip.data[0] & fl->net.mask.data[3])
+                == fl->net.ip.data[3]);
 			return res;
 		}
 
 		res = 1;
-		for (x = 0; x < 4; x++)
-			res &= ((rc->ip.data[x] & fl->net.mask.data[x])
-			       == fl->net.ip.data[x]);
+        // forbid match for v6 node and v4 data
+        if (fl->net.ver == 6 && !rc->ip.data[0]
+            && !rc->ip.data[1] && !rc->ip.data[2]) {
+            return 0;
+        }
+
+		for (x = 0; x < 4; x++) {
+            res &= ((rc->ip.data[x] & fl->net.mask.data[x])
+                == fl->net.ip.data[x]);
+        }
+
+        // Forbid match for v4 node and v6 rec
+        if (res && fl->net.ver == 4 && (rc->ip.data[0]
+            || rc->ip.data[1] || rc->ip.data[2])) {
+            return 0;
+        }
 		return res;
 
 	// This type is used only of no options are set and EQ operator is used
