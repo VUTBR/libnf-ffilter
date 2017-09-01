@@ -146,11 +146,37 @@ typedef enum ff_attr_e{
 	FFAT_IS_MEX,
 	FFAT_IS_MES,
 
+    FFAT_INS_UI,
+    FFAT_INS_UIBE,
+    FFAT_INS_UI8,
+    FFAT_INS_UI4,
+    FFAT_INS_UI2,
+    FFAT_INS_UI1,
+    FFAT_INS_I,
+    FFAT_INS_IBE,
+    FFAT_INS_I8,
+    FFAT_INS_I4,
+    FFAT_INS_I2,
+    FFAT_INS_I1,
+    FFAT_INS_RE,
+    FFAT_INS_STR,
+    FFAT_INS_TSB,
+    FFAT_INS_TS,
+    FFAT_INS_MAC,
+    FFAT_INS_AD4,
+    FFAT_INS_AD6,
+    FFAT_INS_ADP,
+    FFAT_INS_ML,
+    FFAT_INS_MLX,
+    FFAT_INS_MEX,
+    FFAT_INS_MES,
+
 	FFAT_EXIST,
 	FFAT_IN
 
 } ff_attr_t;
 
+ff_attr_t ff_negate(ff_attr_t o);
 
 ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* info);
 

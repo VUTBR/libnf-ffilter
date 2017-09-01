@@ -198,6 +198,11 @@ ff_error_t test_lookup_func (struct ff_s *filter, const char *valstr, ff_lvalue_
 		type = FF_TYPE_UNSUPPORTED;
 		lvalue->id[0].index = FLD_BINARY_HEAP;
 
+	} else if (!strcmp(valstr, "flags")) {
+		type = FF_TYPE_UNSIGNED;
+        lvalue->options = FF_OPTS_FLAGS;
+		lvalue->id[0].index = FLD_NUMBER16;
+
 	} else if (!strcmp(valstr, "none")) {
 		type = FF_TYPE_UINT8;
 		lvalue->id[0].index = FLD_NONE;
@@ -600,6 +605,59 @@ TEST_F(filter_types_test, signed_integer)
 	EXPECT_NE(FF_OK, init("srcint invalid-input"));
 }
 
+
+// Experimental
+TEST_F(filter_types_test, flags)
+{
+    ASSERT_EQ(FF_OK, init("flags 0x82"));
+    fillInt16(0x8f);
+    EXPECT_TRUE(eval(&rec));
+    fillInt16(0x80);
+    EXPECT_FALSE(eval(&rec));
+
+    ASSERT_EQ(FF_OK, init("not flags 0x70 and not flags 0x01"));
+    fillInt16(0x80);
+    EXPECT_TRUE(eval(&rec));
+    fillInt16(0x70);
+    EXPECT_FALSE(eval(&rec));
+    fillInt16(0x71);
+    EXPECT_FALSE(eval(&rec));
+
+    ASSERT_EQ(FF_OK, init("not flags 0x71"));
+    fillInt16(0x8e);
+    EXPECT_TRUE(eval(&rec));
+    fillInt16(0x170);
+    EXPECT_FALSE(eval(&rec));
+    fillInt16(0x111);
+    EXPECT_FALSE(eval(&rec));
+    fillInt16(0x71);
+    EXPECT_FALSE(eval(&rec));
+
+    ASSERT_EQ(FF_OK, init("flags 0x2 and not flags 0x8d"));
+    fillInt16(0x8f);
+    EXPECT_FALSE(eval(&rec));
+    fillInt16(0x2);
+    EXPECT_TRUE(eval(&rec));
+
+    ASSERT_EQ(FF_OK, init("flags 0x81 and not flags 0x7e"));
+    fillInt16(0x7f);
+    EXPECT_FALSE(eval(&rec));
+    fillInt16(0x2);
+    EXPECT_FALSE(eval(&rec));
+    fillInt16(0x83);
+    EXPECT_FALSE(eval(&rec));
+
+    ASSERT_EQ(FF_OK, init("flags 0x0182 and not flags 0x8e7d"));
+    fillInt16(0xee8f);
+    EXPECT_FALSE(eval(&rec));
+    fillInt16(0x8f);
+    EXPECT_FALSE(eval(&rec));
+    fillInt16(0x182);
+    EXPECT_TRUE(eval(&rec));
+    fillInt16(0x183);
+    EXPECT_FALSE(eval(&rec));
+}
+
 TEST_F(filter_types_test, ip_addr)
 {
 	ASSERT_EQ(FF_OK, init("addr 192.168.0.1"));
@@ -759,7 +817,7 @@ TEST_F(filter_types_test, string)
 	ASSERT_EQ(FF_OK, init("message in [ Helloworld tlrd etc... ]"));
 	fillMessage("tlrd");
 	EXPECT_TRUE(eval(&rec));
-	fillMessage("etc...");
+	fillMessage("etc...");    EXPECT_TRUE(eval(&rec));
 	EXPECT_TRUE(eval(&rec));
 	fillMessage("world");
 	EXPECT_FALSE(eval(&rec));

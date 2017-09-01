@@ -1173,6 +1173,26 @@ ff_node_t* ff_new_leaf(yyscan_t scanner, ff_t *filter, char *fieldstr, ff_oper_t
 ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_t oper, ff_node_t* right) {
 
 	ff_node_t *node;
+    node = NULL;
+
+    // not has only one child
+    if (oper == FF_OP_NOT) {
+        if (right && !left) {
+            node = right;
+        } else if (left && !right) {
+            node = left;
+        } else {
+            return NULL;
+        }
+
+        if (node) {
+            ff_attr_t neg;
+            if (FFAT_ERR != (neg = ff_negate(node->type))) {
+                node->type = neg;
+                return right;
+            }
+        }
+    }
 
 	node = malloc(sizeof(ff_node_t));
 
@@ -1257,7 +1277,7 @@ int ff_eval_node(ff_t *filter, ff_node_t *node, void *rec)
 		left = ff_eval_node(filter, node->left, rec);
 
 		// do not evaluate if the result is obvious
-		if (node->oper == FF_OP_NOT)			{ return left <= 0; };
+		if (node->oper == FF_OP_NOT)			    { return left <= 0; };
 		if (node->oper == FF_OP_OR  && left > 0)	{ return 1; };
 		if (node->oper == FF_OP_AND && left <= 0)	{ return 0; };
 	}

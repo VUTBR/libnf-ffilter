@@ -242,6 +242,7 @@ typedef enum {
 	FF_OP_LT,
 	FF_OP_GT,
 	FF_OP_ISSET,
+	FF_OP_ISNSET,    // Nfdump compat operator, for flags exclusion
 	FF_OP_EXIST,
     FF_OP_TERM_
 } ff_oper_t;

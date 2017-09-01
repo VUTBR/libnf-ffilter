@@ -32,6 +32,61 @@
 #include <stdlib.h>
 
 
+ff_attr_t ff_negate(ff_attr_t o)
+{
+    switch(o) {
+    default: return FFAT_ERR;
+    case FFAT_IS_UI: return FFAT_INS_UI;
+    case FFAT_IS_UIBE: return FFAT_INS_UIBE;
+    case FFAT_IS_UI8: return FFAT_INS_UI8;
+    case FFAT_IS_UI4: return FFAT_INS_UI4;
+    case FFAT_IS_UI2: return FFAT_INS_UI2;
+    case FFAT_IS_UI1: return FFAT_INS_UI1;
+    case FFAT_IS_I: return FFAT_INS_I;
+    case FFAT_IS_IBE: return FFAT_INS_IBE;
+    case FFAT_IS_I8: return FFAT_INS_I8;
+    case FFAT_IS_I4: return FFAT_INS_I4;
+    case FFAT_IS_I2: return FFAT_INS_I2;
+    case FFAT_IS_I1: return FFAT_INS_I1;
+    case FFAT_IS_RE: return FFAT_INS_RE;
+    case FFAT_IS_STR: return FFAT_INS_STR;
+    case FFAT_IS_TSB: return FFAT_INS_TSB;
+    case FFAT_IS_TS: return FFAT_INS_TS;
+    case FFAT_IS_MAC: return FFAT_INS_MAC;
+    case FFAT_IS_AD4: return FFAT_INS_AD4;
+    case FFAT_IS_AD6: return FFAT_INS_AD6;
+    case FFAT_IS_ADP: return FFAT_INS_ADP;
+    case FFAT_IS_ML: return FFAT_INS_ML;
+    case FFAT_IS_MLX: return FFAT_INS_MLX;
+    case FFAT_IS_MEX: return FFAT_INS_MEX;
+    case FFAT_IS_MES: return FFAT_INS_MES;
+    case FFAT_INS_UI: return FFAT_IS_UI;
+    case FFAT_INS_UIBE: return FFAT_IS_UIBE;
+    case FFAT_INS_UI8: return FFAT_IS_UI8;
+    case FFAT_INS_UI4: return FFAT_IS_UI4;
+    case FFAT_INS_UI2: return FFAT_IS_UI2;
+    case FFAT_INS_UI1: return FFAT_IS_UI1;
+    case FFAT_INS_I: return FFAT_IS_I;
+    case FFAT_INS_IBE: return FFAT_IS_IBE;
+    case FFAT_INS_I8: return FFAT_IS_I8;
+    case FFAT_INS_I4: return FFAT_IS_I4;
+    case FFAT_INS_I2: return FFAT_IS_I2;
+    case FFAT_INS_I1: return FFAT_IS_I1;
+    case FFAT_INS_RE: return FFAT_IS_RE;
+    case FFAT_INS_STR: return FFAT_IS_STR;
+    case FFAT_INS_TSB: return FFAT_IS_TSB;
+    case FFAT_INS_TS: return FFAT_IS_TS;
+    case FFAT_INS_MAC: return FFAT_IS_MAC;
+    case FFAT_INS_AD4: return FFAT_IS_AD4;
+    case FFAT_INS_AD6: return FFAT_IS_AD6;
+    case FFAT_INS_ADP: return FFAT_IS_ADP;
+    case FFAT_INS_ML: return FFAT_IS_ML;
+    case FFAT_INS_MLX: return FFAT_IS_MLX;
+    case FFAT_INS_MEX: return FFAT_IS_MEX;
+    case FFAT_INS_MES: return FFAT_IS_MES;
+    }
+}
+
 ff_attr_t ff_validate(ff_type_t type, ff_oper_t op, char* data, ff_lvalue_t* info)
 {
 	ff_val_t* fl = (ff_val_t*)data;
@@ -244,7 +299,6 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	const ff_rec_t* const rc = (ff_rec_t*)buf; // record data
 	ff_rec_t hord; //Host byte order converted value
 
-	// Get this shit going fist integer then string etc...
 	int res = 0;
 	unsigned int x = 0;
 
@@ -256,20 +310,22 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_GT_UIBE:
 	case FFAT_LT_UIBE:
 	case FFAT_IS_UIBE:
+    case FFAT_INS_UIBE:
 	case FFAT_EQ_IBE:
 	case FFAT_GT_IBE:
 	case FFAT_LT_IBE:
 	case FFAT_IS_IBE:
+    case FFAT_INS_IBE:
 
 		hord.ui = 0; // Copy and transform
 		if (size == 8) {
 			hord.ui = ntohll(rc->ui);
 		} else if (size == 4) {
-			hord.ui4 = ntohl(rc->ui4);
+			hord.ui = ntohl(rc->ui4);
 		} else if (size == 2) {
-			hord.ui2 = ntohs(rc->ui2);
+			hord.ui = ntohs(rc->ui2);
 		} else if (size == 1) {
-			hord.ui1 = rc->ui1;
+			hord.ui = rc->ui1;
 		} else {
 			return -1;
 		}
@@ -279,20 +335,22 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_GT_UI:
 	case FFAT_LT_UI:
 	case FFAT_IS_UI:
+    case FFAT_INS_UI:
 	case FFAT_EQ_I:
 	case FFAT_GT_I:
 	case FFAT_LT_I:
 	case FFAT_IS_I:
+    case FFAT_INS_I:
 
 		hord.ui = 0; // Copy
 		if (size == 8) {
 			hord.ui = rc->ui;
 		} else if (size == 4) {
-			hord.ui4 = rc->ui4;
+			hord.ui = rc->ui4;
 		} else if (size == 2) {
-			hord.ui2 = rc->ui2;
+			hord.ui = rc->ui2;
 		} else if (size == 1) {
-			hord.ui1 = rc->ui1;
+			hord.ui = rc->ui1;
 		} else {
 			return -1;
 		}
@@ -357,15 +415,39 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 	case FFAT_IS_UIBE:
 	case FFAT_IS_UI:
+    case FFAT_IS_IBE:
+    case FFAT_IS_I:
 		return (hord.ui & fl->ui) == fl->ui;
 	case FFAT_IS_UI8:
+    case FFAT_IS_I8:
 		return (rc->ui & fl->ui) == fl->ui;
 	case FFAT_IS_UI4:
+    case FFAT_IS_I4:
 		return (rc->ui4 & fl->ui) == fl->ui;
 	case FFAT_IS_UI2:
+    case FFAT_IS_I2:
 		return (rc->ui2 & fl->ui) == fl->ui;
 	case FFAT_IS_UI1:
+    case FFAT_IS_I1:
 		return (rc->ui1 & fl->ui) == fl->ui;
+
+    case FFAT_INS_UIBE:
+    case FFAT_INS_UI:
+    case FFAT_INS_IBE:
+    case FFAT_INS_I:
+        return (hord.ui & fl->ui) == 0;
+    case FFAT_INS_UI8:
+    case FFAT_INS_I8:
+        return (rc->ui & fl->ui) ==  0;
+    case FFAT_INS_UI4:
+    case FFAT_INS_I4:
+        return (rc->ui4 & fl->ui) == 0;
+    case FFAT_INS_UI2:
+    case FFAT_INS_I2:
+        return (rc->ui2 & fl->ui) == 0;
+    case FFAT_INS_UI1:
+    case FFAT_INS_I1:
+        return (rc->ui1 & fl->ui) == 0;
 
 
 	case FFAT_EQ_IBE:
@@ -404,19 +486,6 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_LT_I1:
 		return rc->i1 < fl->i;
 
-	case FFAT_IS_IBE:
-	case FFAT_IS_I:
-		return (hord.i & fl->i) == fl->i;
-	case FFAT_IS_I8:
-		return (rc->i & fl->i) == fl->i;
-	case FFAT_IS_I4:
-		return (rc->i4 & fl->i) == fl->i;
-	case FFAT_IS_I2:
-		return (rc->i2 & fl->i) == fl->i;
-	case FFAT_IS_I1:
-		return (rc->i1 & fl->i) == fl->i;
-
-
 	case FFAT_EQ_RE:
 		return rc->real == fl->real;
 	case FFAT_GT_RE:
@@ -429,6 +498,8 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 	case FFAT_IS_STR:
         // Make it safe
 		return strcasestr(&rc->str[0], &fl->str[0]) != NULL;
+    case FFAT_INS_STR:
+        return !strcasestr(&rc->str[0], &fl->str[0]) != NULL;
 
 	case FFAT_EQ_MAC:
 		return !memcmp(&rc->str[0], &fl->str[0], sizeof(ff_mac_t));
@@ -527,6 +598,8 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 		return fl->mpls.val > rc->mpls.id[fl->mpls.label - 1].exp;
 	case FFAT_IS_MEX:
 		return fl->mpls.val == (fl->mpls.val & rc->mpls.id[fl->mpls.label - 1].exp);
+    case FFAT_INS_MEX:
+        return 0 == (fl->mpls.val & rc->mpls.id[fl->mpls.label - 1].exp);
 
     // To eval which label is atop of stack EOS bit is set
 	case FFAT_EQ_MES:
