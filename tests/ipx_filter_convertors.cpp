@@ -546,3 +546,24 @@ TEST_F(str_to_number_test, unsigned_ranges) {
     fail_convert_uint("-9223372036854775809", FF_TYPE_UINT64);
     fail_convert_uint("18446744073709551616", FF_TYPE_UINT64);
 }
+
+TEST_F(str_to_number_test, timestamps)
+{
+    ASSERT_FALSE(str_to_timestamp(filter, "2017-9-1 12:24:44", &ptr, &size));
+    EXPECT_EQ(1504261484000, *((ff_timestamp_t*)ptr));
+
+    ASSERT_FALSE(str_to_timestamp(filter, "2017-9-01  12:25:44", &ptr, &size));
+    //60000 more
+    EXPECT_EQ(1504261544000, *((ff_timestamp_t*)ptr));
+
+
+    ASSERT_FALSE(str_to_timestamp(filter, "1970-1-1 1:0:0", &ptr, &size));
+    EXPECT_EQ(0, *((ff_timestamp_t*)ptr));
+
+    // Will cause underflow which is bad but cant do anything about it
+    ASSERT_FALSE(str_to_timestamp(filter, "1970-1-1 0:0:0", &ptr, &size));
+    EXPECT_EQ((uint64_t)(-3600000), *((ff_timestamp_t*)ptr));
+
+    ASSERT_TRUE(str_to_timestamp(filter, "2017-9-01  12:25:144", &ptr, &size));
+    ASSERT_TRUE(str_to_timestamp(filter, "12:25:144 random text", &ptr, &size));
+}

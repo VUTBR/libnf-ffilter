@@ -710,13 +710,21 @@ int str_to_timestamp(ff_t *filter, char* str, char** res, size_t *size)
 {
 	struct tm tm;
 	ff_timestamp_t timest;
+	const char *res_ptr;
 
-	if (strptime(str, "%F%n%T", &tm) == NULL) {
+	res_ptr = strptime(str, "%F%n%T", &tm);
+
+	if (res_ptr == NULL || *res_ptr != '\0') {
         ff_set_error(filter, "Conversion failed, bad characters in timestamp \"%s\"", str);
 		return 1;
 	}
 
 	timest = (ff_timestamp_t)mktime(&tm);
+
+    if (timest == -1) {
+        ff_set_error(filter, "Conversion failed, cannot represent timestamp \"%s\"", str);
+        return 1;
+    }
 
 	char *ptr = malloc(sizeof(ff_timestamp_t));
 	if (!ptr) {
@@ -1182,6 +1190,7 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
         } else if (left && !right) {
             node = left;
         } else {
+	        ff_set_error(filter, "Failed, not operator node requires only one child.");
             return NULL;
         }
 
@@ -1189,7 +1198,7 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
             ff_attr_t neg;
             if (FFAT_ERR != (neg = ff_negate(node->type))) {
                 node->type = neg;
-                return right;
+                return node;
             }
         }
     }

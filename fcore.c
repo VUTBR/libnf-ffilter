@@ -499,7 +499,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
         // Make it safe
 		return strcasestr(&rc->str[0], &fl->str[0]) != NULL;
     case FFAT_INS_STR:
-        return !strcasestr(&rc->str[0], &fl->str[0]) != NULL;
+        return strcasestr(&rc->str[0], &fl->str[0]) == NULL;
 
 	case FFAT_EQ_MAC:
 		return !memcmp(&rc->str[0], &fl->str[0], sizeof(ff_mac_t));
