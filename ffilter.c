@@ -712,6 +712,8 @@ int str_to_timestamp(ff_t *filter, char* str, char** res, size_t *size)
 	ff_timestamp_t timest;
 	const char *res_ptr;
 
+    memset(&tm, 0, sizeof(struct tm));
+
 	res_ptr = strptime(str, "%F%n%T", &tm);
 
 	if (res_ptr == NULL || *res_ptr != '\0') {
