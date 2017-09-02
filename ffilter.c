@@ -23,7 +23,7 @@
  * \file ffilter.c
  * \brief netflow fiter implementation
  */
-
+#define _XOPEN_SOURCE 500
 #include "config.h"
 #include <stdio.h>
 #include <stdarg.h>
