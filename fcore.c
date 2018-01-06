@@ -25,8 +25,8 @@
  * \brief netflow fiter tree (abstract syntax tree) evaluation function and structures
  */
 
-#include "fcore.h"
 #include "ffilter.h"
+#include "fcore.h"
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
@@ -304,7 +304,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 	// Handle variable length types, big endians and so on, pre-copy data
 	// Pre-process switch
-	switch ((ff_attr_t)node->type) {
+	switch (node->opcode) {
 
 	case FFAT_EQ_UIBE:
 	case FFAT_GT_UIBE:
@@ -375,7 +375,7 @@ int ff_oper_eval_V2(char* buf, size_t size, ff_node_t *node)
 
 
 	// Eval switch
-	switch ((ff_attr_t)node->type) {
+	switch (node->opcode) {
 
 	case FFAT_EQ_UIBE:
 	case FFAT_EQ_UI:

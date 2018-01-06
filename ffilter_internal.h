@@ -33,7 +33,6 @@
 
 #include "ffilter.h"
 
-
 #ifndef HAVE_HTONLL
 #ifdef WORDS_BIGENDIAN
 #   define ntohll(n)    (n)

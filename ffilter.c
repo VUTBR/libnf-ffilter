@@ -889,7 +889,8 @@ ff_error_t ff_type_validate(yyscan_t *scanner, ff_t *filter, char *valstr, ff_no
 
 		return FF_ERR_OTHER_MSG;
 	}
-	node->type = valid;
+	node->type = info->type;
+	node->opcode = valid;
 	return FF_OK;
 }
 
@@ -1198,8 +1199,8 @@ ff_node_t* ff_new_node(yyscan_t scanner, ff_t *filter, ff_node_t* left, ff_oper_
 
         if (node) {
             ff_attr_t neg;
-            if (FFAT_ERR != (neg = ff_negate(node->type))) {
-                node->type = neg;
+            if (FFAT_ERR != (neg = ff_negate(node->opcode))) {
+                node->opcode = neg;
                 return node;
             }
         }
